@@ -9,6 +9,8 @@ const cron = require('node-cron');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const axios = require('axios');
+const sgMail = require('@sendgrid/mail');
+const schedule = require('node-schedule');
 
 const app = express();
 const server = http.createServer(app);
@@ -21,6 +23,24 @@ app.use(express.json());
 // Initialize APIs
 const newsapi = new NewsAPI(process.env.NEWS_API_KEY);
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// Create SMTP transporter
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: process.env.SMTP_PORT,
+  secure: false, // true for 465, false for other ports
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS
+  }
+});
+
+// Verify SMTP configuration
+console.log('SMTP Configuration:', {
+  host: process.env.SMTP_HOST,
+  port: process.env.SMTP_PORT,
+  user: process.env.SMTP_USER
+});
 
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI, {
@@ -71,149 +91,6 @@ subscriberSchema.pre('save', function(next) {
 
 // Create model with explicit collection name
 const Subscriber = mongoose.model('Subscriber', subscriberSchema, 'subscribers');
-
-// Email transporter with enhanced configuration
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT,
-    secure: false,
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-    },
-    tls: {
-        rejectUnauthorized: false // Only for development
-    },
-    debug: true, // Enable debug logging
-    logger: true // Enable logger
-});
-
-// Set default sender email - Replace with your verified email address
-const DEFAULT_SENDER = {
-    name: 'NewsNexus Daily',
-    address: 'yashmwani@gmail.com' // Replace with your verified email
-};
-
-// Verify SMTP connection
-transporter.verify(function(error, success) {
-    if (error) {
-        console.error('SMTP Connection Error:', error);
-        console.error('SMTP Configuration:', {
-            host: process.env.SMTP_HOST,
-            port: process.env.SMTP_PORT,
-            user: process.env.SMTP_USER,
-            // Don't log the full API key for security
-            passLength: process.env.SMTP_PASS ? process.env.SMTP_PASS.length : 0
-        });
-    } else {
-        console.log('SMTP Server is ready to send emails');
-    }
-});
-
-// Add this new test endpoint right after the transporter configuration
-app.get('/api/test-sendgrid', async (req, res) => {
-    try {
-        console.log('Testing SendGrid configuration...');
-        console.log('SMTP Configuration:', {
-            host: process.env.SMTP_HOST,
-            port: process.env.SMTP_PORT,
-            user: process.env.SMTP_USER,
-            sender: DEFAULT_SENDER
-        });
-
-        const testEmailContent = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <style>
-                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                    .header { background: #4a5568; color: white; padding: 20px; text-align: center; }
-                    .content { padding: 20px; }
-                    .success { color: #48bb78; font-weight: bold; }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <h1>SendGrid Test Email</h1>
-                    </div>
-                    <div class="content">
-                        <p class="success">✓ This is a test email from NewsNexus Daily</p>
-                        <p>If you're receiving this email, your SendGrid configuration is working correctly!</p>
-                        <p>Configuration Details:</p>
-                        <ul>
-                            <li>SMTP Host: ${process.env.SMTP_HOST}</li>
-                            <li>SMTP Port: ${process.env.SMTP_PORT}</li>
-                            <li>Sender: ${DEFAULT_SENDER.name} <${DEFAULT_SENDER.address}></li>
-                        </ul>
-                    </div>
-                </div>
-            </body>
-            </html>
-        `;
-
-        // First verify the SMTP connection
-        await new Promise((resolve, reject) => {
-            transporter.verify(function(error, success) {
-                if (error) {
-                    console.error('SMTP Verification Error:', error);
-                    reject(error);
-                } else {
-                    console.log('SMTP Server is ready to send emails');
-                    resolve(success);
-                }
-            });
-        });
-
-        // Try to send the test email
-        const info = await transporter.sendMail({
-            from: `"${DEFAULT_SENDER.name}" <${DEFAULT_SENDER.address}>`,
-            to: DEFAULT_SENDER.address,
-            subject: 'SendGrid Test - NewsNexus Daily',
-            html: testEmailContent
-        });
-
-        console.log('Email sent successfully:', info);
-
-        res.json({
-            success: true,
-            message: 'Test email sent successfully!',
-            details: {
-                messageId: info.messageId,
-                response: info.response,
-                host: process.env.SMTP_HOST,
-                port: process.env.SMTP_PORT,
-                user: process.env.SMTP_USER,
-                sender: DEFAULT_SENDER
-            }
-        });
-    } catch (error) {
-        console.error('Error in SendGrid test:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to send test email',
-            error: error.message,
-            stack: error.stack,
-            details: {
-                host: process.env.SMTP_HOST,
-                port: process.env.SMTP_PORT,
-                user: process.env.SMTP_USER,
-                sender: DEFAULT_SENDER
-            }
-        });
-    }
-});
-
-// Add error event listener to transporter
-transporter.on('error', (error) => {
-    console.error('Transporter Error:', error);
-});
-
-// Add success event listener to transporter
-transporter.on('success', (info) => {
-    console.log('Email sent successfully:', info);
-});
 
 // Email template function
 function createEmailTemplate(topics, summaries, articles = []) {
@@ -361,27 +238,27 @@ function createEmailTemplate(topics, summaries, articles = []) {
                 <div class="content">
                     ${topics.map((topic, index) => {
                         const topicArticles = articles[index] || [];
-                        console.log(`Processing topic ${topic} with ${topicArticles.length} articles`);
+                        // Robustly split summary into blocks for each article
+                        const blocks = summaries[index].split(/\n{2,}(?=## )/).filter(b => b.trim().startsWith('##'));
+                        console.log(`Summary blocks for topic '${topic}':`, blocks);
                         return `
                             <div class="topic">
                                 <h2>${topic}</h2>
-                                    ${summaries[index].split('\n\n').map(block => {
-                                        if (block.startsWith('##')) {
-                                            const [title, ...content] = block.split('\n');
+                                ${blocks.map(block => {
+                                    if (block.startsWith('##')) {
+                                        const [title, ...content] = block.split('\n');
                                         // Find the matching article for this block
                                         const articleIndex = parseInt(content[0]?.match(/\[(\d+)\]/)?.[1]) - 1;
                                         const matchingArticle = topicArticles[articleIndex];
-                                        
-                                            const processedContent = content.join('\n').replace(/\[(\d+)\]/g, (match, num) => {
+                                        const processedContent = content.join('\n').replace(/\[(\d+)\]/g, (match, num) => {
                                             const articleIndex = parseInt(num) - 1;
                                             const article = topicArticles[articleIndex];
-                                                console.log(`Looking for article with index ${articleIndex}:`, article);
-                                                if (article) {
+                                            if (article) {
                                                 return `<a href="${article.url}" target="_blank" class="news-link">[${num}]</a>`;
-                                                }
-                                                return match;
-                                            });
-                                            return `
+                                            }
+                                            return match;
+                                        });
+                                        return `
                                             <div class="article">
                                                 <h3>${title.replace('##', '').trim()}</h3>
                                                 <div class="article-content">
@@ -390,13 +267,13 @@ function createEmailTemplate(topics, summaries, articles = []) {
                                                 ${matchingArticle ? `
                                                     <a href="${matchingArticle.url}" target="_blank" class="read-more">
                                                         Read full article: ${matchingArticle.heading}
-                                                        </a>
+                                                    </a>
                                                 ` : ''}
-                                                </div>
-                                            `;
-                                        }
-                                        return `<p>${block}</p>`;
-                                    }).join('')}
+                                            </div>
+                                        `;
+                                    }
+                                    return `<p>${block}</p>`;
+                                }).join('')}
                             </div>
                         `;
                     }).join('')}
@@ -648,123 +525,159 @@ io.on('connection', (socket) => {
     });
 });
 
-// Enhanced test email endpoint
-app.get('/api/test-email', async (req, res) => {
-    try {
-        const recipientEmail = req.query.email || process.env.SMTP_USER;
-        
-        if (!recipientEmail) {
-            return res.status(400).json({
-                success: false,
-                message: 'Please provide an email address as a query parameter: /api/test-email?email=your@email.com'
-            });
-        }
+// Test route to manually trigger email sending
+app.get('/test-email', async (req, res) => {
+  try {
+    console.log('\n=== MANUAL EMAIL TEST STARTED ===');
+    console.log('Current time:', new Date().toLocaleString());
 
-        const testEmailContent = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <style>
-                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                    .header { background: #4a5568; color: white; padding: 20px; text-align: center; }
-                    .content { padding: 20px; }
-                    .success { color: #48bb78; font-weight: bold; }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <h1>SMTP Configuration Test</h1>
-                    </div>
-                    <div class="content">
-                        <p class="success">✓ SMTP Configuration Successful!</p>
-                        <p>Your email configuration is working correctly. You will now be able to receive daily news summaries.</p>
-                        <p>Configuration Details:</p>
-                        <ul>
-                            <li>SMTP Host: ${process.env.SMTP_HOST}</li>
-                            <li>SMTP Port: ${process.env.SMTP_PORT}</li>
-                            <li>Sender: ${DEFAULT_SENDER.name} <${DEFAULT_SENDER.address}></li>
-                        </ul>
-                    </div>
-                </div>
-            </body>
-            </html>
-        `;
-
-        await transporter.sendMail({
-            from: `"${DEFAULT_SENDER.name}" <${DEFAULT_SENDER.address}>`,
-            to: recipientEmail,
-            subject: 'SendGrid SMTP Test - NewsNexus Daily',
-            html: testEmailContent
-        });
-
-        res.json({ 
-            success: true, 
-            message: 'Test email sent successfully!',
-            details: {
-                host: process.env.SMTP_HOST,
-                port: process.env.SMTP_PORT,
-                user: process.env.SMTP_USER,
-                sender: DEFAULT_SENDER,
-                recipient: recipientEmail
-            }
-        });
-    } catch (error) {
-        console.error('Error sending test email:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Failed to send test email',
-            error: error.message,
-            details: {
-                host: process.env.SMTP_HOST,
-                port: process.env.SMTP_PORT,
-                user: process.env.SMTP_USER,
-                sender: DEFAULT_SENDER
-            }
-        });
+    // Verify SMTP configuration
+    if (!process.env.SMTP_HOST || !process.env.SMTP_PORT || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+      console.error('SMTP configuration is incomplete');
+      return res.status(500).json({ 
+        error: 'SMTP configuration error', 
+        details: 'SMTP configuration is incomplete. Please check your environment variables.' 
+      });
     }
+
+    // Test SMTP connection
+    console.log('Testing SMTP connection...');
+    const testMsg = {
+      to: 'yashmwani@gmail.com',
+      from: 'yashmwani@gmail.com',
+      subject: 'Test Email from NewsNexus Daily',
+      text: 'This is a test email to verify SMTP configuration.',
+      html: '<h1>Test Email</h1><p>This is a test email to verify SMTP configuration.</p>'
+    };
+
+    try {
+      const info = await transporter.sendMail(testMsg);
+      console.log('Test email sent successfully:', info);
+    } catch (error) {
+      console.error('SMTP test failed:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack
+      });
+      return res.status(500).json({ 
+        error: 'SMTP test failed', 
+        details: error.message 
+      });
+    }
+
+    // Test MongoDB connection and fetch subscribers
+    console.log('\nTesting MongoDB connection and fetching subscribers...');
+    const subscribers = await Subscriber.find({ isActive: true });
+    console.log(`Found ${subscribers.length} active subscribers`);
+
+    if (subscribers.length === 0) {
+      console.log('No active subscribers found');
+      return res.json({ 
+        message: 'Test completed',
+        smtp: 'Success',
+        subscribers: 'None found'
+      });
+    }
+
+    // Print subscriber details
+    subscribers.forEach((subscriber, index) => {
+      console.log(`\nSubscriber ${index + 1}:`);
+      console.log('Email:', subscriber.email);
+      console.log('Topics:', subscriber.topics);
+      console.log('Active:', subscriber.isActive);
+      console.log('ID:', subscriber._id);
+    });
+
+    res.json({ 
+      message: 'Test completed',
+      smtp: 'Success',
+      subscribers: subscribers.length,
+      details: subscribers.map(s => ({
+        email: s.email,
+        topics: s.topics,
+        active: s.isActive
+      }))
+    });
+
+    } catch (error) {
+    console.error('Test route error:', error);
+    res.status(500).json({ error: 'Test failed', details: error.message });
+  }
 });
 
-// Update the daily news delivery cron job
-cron.schedule('0 8 * * *', async () => {
-    try {
+// Schedule daily news email at 8:00 AM
+schedule.scheduleJob('0 8 * * *', async () => {
+  try {
+    console.log('\n=== STARTING DAILY NEWS EMAIL DISTRIBUTION ===');
+    console.log('Current time:', new Date().toLocaleString());
+    
+    // Fetch all subscribers and filter active ones
         const subscribers = await Subscriber.find({ isActive: true });
-        
-        for (const subscriber of subscribers) {
-            const articlesByTopic = await Promise.all(
-                subscriber.topics.map(async (topic) => {
-                    const articles = await fetchNews(topic);
-                    return articles.map(article => ({
-                        ...article,
-                        unsubscribeToken: subscriber.unsubscribeToken
-                    }));
-                })
-            );
+    console.log(`\nFound ${subscribers.length} active subscribers`);
 
-            const summaries = await Promise.all(
-                subscriber.topics.map(async (topic, index) => {
-                    const articles = articlesByTopic[index];
-                    return await summarizeNews(articles);
-                })
-            );
+    if (subscribers.length === 0) {
+      console.log('No active subscribers found. Skipping email distribution.');
+      return;
+    }
 
-            const emailContent = createEmailTemplate(subscriber.topics, summaries, articlesByTopic);
+    // Process each subscriber
+    for (const subscriber of subscribers) {
+      try {
+        console.log(`\nProcessing subscriber: ${subscriber.email}`);
+        console.log('Topics:', subscriber.topics);
 
-            await transporter.sendMail({
-                from: `"${DEFAULT_SENDER.name}" <${DEFAULT_SENDER.address}>`,
-                to: subscriber.email,
-                subject: 'Your Daily NewsNexus Summary',
-                html: emailContent
-            });
-
-            subscriber.lastSent = new Date();
-            await subscriber.save();
-            
-            console.log(`Daily summary sent to ${subscriber.email}`);
+        if (!subscriber.topics || subscriber.topics.length === 0) {
+          console.log(`Skipping ${subscriber.email} - no topics found`);
+          continue;
         }
+
+        // Fetch articles for each topic
+        const articlesByTopic = await Promise.all(
+          subscriber.topics.map(async (topic) => await fetchNews(topic))
+        );
+
+        // Summarize news for each topic
+        const summaries = await Promise.all(
+          articlesByTopic.map(async (articles) => await summarizeNews(articles))
+        );
+
+        // Generate email content using createEmailTemplate
+        const emailContent = createEmailTemplate(
+          subscriber.topics,
+          summaries,
+          articlesByTopic
+        );
+
+        // Prepare and send email
+        const msg = {
+          to: subscriber.email,
+          from: 'yashmwani@gmail.com',
+          subject: 'Your Personalized Daily News Update - NewsNexus Daily',
+          html: emailContent
+        };
+
+        console.log(`Attempting to send email to ${subscriber.email}...`);
+        const info = await transporter.sendMail(msg);
+        console.log(`Email sent successfully to ${subscriber.email}`);
+        console.log('SMTP Response:', info);
+
+      } catch (error) {
+        console.error(`Error processing subscriber ${subscriber.email}:`, error);
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack
+        });
+        continue;
+      }
+    }
+
+    console.log('\n=== DAILY NEWS EMAIL DISTRIBUTION COMPLETED ===');
     } catch (error) {
-        console.error('Error in daily news delivery:', error);
+    console.error('Error in scheduled news email distribution:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack
+    });
     }
 });
 
@@ -833,145 +746,6 @@ async function fetchRecentNews() {
         return [];
     }
 }
-
-// Update the test email endpoint
-app.get('/api/send-test-emails', async (req, res) => {
-    try {
-        const subscribers = await Subscriber.find({});
-        let results = {
-            total: subscribers.length,
-            successful: 0,
-            failed: 0,
-            details: []
-        };
-
-        if (subscribers.length === 0) {
-            // If no subscribers found, send a test email to the configured sender
-            try {
-                const testEmailContent = `
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <style>
-                            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                            .header { background: #4a5568; color: white; padding: 20px; text-align: center; }
-                            .content { padding: 20px; }
-                            .success { color: #48bb78; font-weight: bold; }
-                        </style>
-                    </head>
-                    <body>
-                        <div class="container">
-                            <div class="header">
-                                <h1>SMTP Configuration Test</h1>
-                            </div>
-                            <div class="content">
-                                <p class="success">✓ SMTP Configuration Successful!</p>
-                                <p>Your email configuration is working correctly. You will now be able to receive daily news summaries.</p>
-                                <p>Configuration Details:</p>
-                                <ul>
-                                    <li>SMTP Host: ${process.env.SMTP_HOST}</li>
-                                    <li>SMTP Port: ${process.env.SMTP_PORT}</li>
-                                    <li>Sender: ${DEFAULT_SENDER.name} <${DEFAULT_SENDER.address}></li>
-                                </ul>
-                            </div>
-                        </div>
-                    </body>
-                    </html>
-                `;
-
-                await transporter.sendMail({
-                    from: `"${DEFAULT_SENDER.name}" <${DEFAULT_SENDER.address}>`,
-                    to: DEFAULT_SENDER.address,
-                    subject: 'SendGrid SMTP Test - NewsNexus Daily',
-                    html: testEmailContent
-                });
-
-                return res.json({
-                    success: true,
-                    message: 'Test email sent successfully to default sender!',
-                    details: {
-                        host: process.env.SMTP_HOST,
-                        port: process.env.SMTP_PORT,
-                        user: process.env.SMTP_USER,
-                        sender: DEFAULT_SENDER,
-                        recipient: DEFAULT_SENDER.address
-                    }
-                });
-            } catch (error) {
-                console.error('Error sending test email:', error);
-                return res.status(500).json({
-                    success: false,
-                    message: 'Failed to send test email',
-                    error: error.message,
-                    details: {
-                        host: process.env.SMTP_HOST,
-                        port: process.env.SMTP_PORT,
-                        user: process.env.SMTP_USER,
-                        sender: DEFAULT_SENDER
-                    }
-                });
-            }
-        }
-
-        for (const subscriber of subscribers) {
-            try {
-                const articlesByTopic = await Promise.all(
-                    subscriber.topics.map(async (topic) => {
-                        const articles = await fetchNews(topic);
-                        return articles;
-                    })
-                );
-
-                const summaries = await Promise.all(
-                    subscriber.topics.map(async (topic, index) => {
-                        const articles = articlesByTopic[index];
-                        return await summarizeNews(articles);
-                    })
-                );
-
-                const emailContent = createEmailTemplate(subscriber.topics, summaries, articlesByTopic);
-
-                await transporter.sendMail({
-                    from: `"${DEFAULT_SENDER.name}" <${DEFAULT_SENDER.address}>`,
-                    to: subscriber.email,
-                    subject: 'Test Email - Your NewsNexus Daily Summary',
-                    html: emailContent
-                });
-
-                results.successful++;
-                results.details.push({
-                    email: subscriber.email,
-                    status: 'success',
-                    topics: subscriber.topics
-                });
-
-                console.log(`Test email sent to ${subscriber.email}`);
-            } catch (error) {
-                results.failed++;
-                results.details.push({
-                    email: subscriber.email,
-                    status: 'failed',
-                    error: error.message
-                });
-                console.error(`Failed to send test email to ${subscriber.email}:`, error);
-            }
-        }
-
-        res.json({
-            success: true,
-            message: `Test emails sent. Successful: ${results.successful}, Failed: ${results.failed}`,
-            results
-        });
-    } catch (error) {
-        console.error('Error sending test emails:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to send test emails',
-            error: error.message
-        });
-    }
-});
 
 // Unsubscribe by token endpoint - MUST be before /api/unsubscribe-by-email
 app.get('/api/unsubscribe/:token', async (req, res) => {

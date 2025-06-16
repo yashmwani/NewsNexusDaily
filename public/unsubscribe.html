@@ -3,145 +3,264 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Unsubscribe - NewsNexus Daily</title>
+    <title>NewsNexus Daily - Unsubscribe</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body {
-            font-family: Arial, sans-serif;
+        * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+            max-width: 100%;
+        }
+
+        :root {
+            --primary-color: #4f46e5;
+            --secondary-color: #818cf8;
+            --background-color: #f8fafc;
+            --text-color: #1e293b;
+            --accent-color: #c7d2fe;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: var(--background-color);
             min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 20px;
+            overflow-x: hidden;
+            width: 100%;
         }
 
         .container {
+            max-width: 600px;
+            margin: 0 auto;
             background: white;
-            padding: 2rem;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            width: 90%;
-            max-width: 500px;
-            text-align: center;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
-        h1 {
-            color: #2d3748;
-            margin-bottom: 1.5rem;
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--accent-color);
+        }
+
+        .header h1 {
+            color: var(--primary-color);
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .header p {
+            color: #64748b;
+            font-size: 1.1em;
+        }
+
+        .unsubscribe-form {
+            background: var(--background-color);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
 
         .form-group {
-            margin-bottom: 1.5rem;
+            margin-bottom: 25px;
         }
 
         label {
             display: block;
-            margin-bottom: 0.5rem;
-            color: #4a5568;
-            text-align: left;
+            margin-bottom: 10px;
+            color: var(--text-color);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         input[type="email"] {
             width: 100%;
-            padding: 0.75rem;
-            border: 2px solid #e2e8f0;
-            border-radius: 5px;
-            font-size: 1rem;
-            transition: border-color 0.3s ease;
+            padding: 12px;
+            border: 2px solid var(--accent-color);
+            border-radius: 8px;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            background: white;
         }
 
         input[type="email"]:focus {
             outline: none;
-            border-color: #5a67d8;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
         }
 
-        button {
-            background: #5a67d8;
+        .button {
+            background: var(--primary-color);
             color: white;
             border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 5px;
-            font-size: 1rem;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: 600;
             cursor: pointer;
-            transition: background-color 0.3s ease;
+            transition: all 0.3s ease;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
         }
 
-        button:hover {
-            background: #4c51bf;
+        .button:hover {
+            background: var(--secondary-color);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
 
-        .status {
-            margin-top: 1rem;
-            padding: 1rem;
-            border-radius: 5px;
+        .status-message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
             display: none;
+            animation: messageAppear 0.3s ease;
         }
 
-        .status.success {
-            background: #c6f6d5;
-            color: #2f855a;
+        .status-message.success {
+            background: #dcfce7;
+            color: #166534;
             display: block;
         }
 
-        .status.error {
-            background: #fed7d7;
-            color: #c53030;
+        .status-message.error {
+            background: #fee2e2;
+            color: #991b1b;
             display: block;
         }
 
-        .back-link {
-            display: inline-block;
-            margin-top: 1rem;
-            color: #5a67d8;
+        .resubscribe-link {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid var(--accent-color);
+        }
+
+        .resubscribe-link a {
+            color: var(--primary-color);
             text-decoration: none;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            padding: 8px 16px;
+            border-radius: 8px;
         }
 
-        .back-link:hover {
-            text-decoration: underline;
+        .resubscribe-link a:hover {
+            color: var(--secondary-color);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
-        .loading {
-            display: none;
-            margin-top: 1rem;
+        @keyframes messageAppear {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
-        .loading::after {
-            content: '';
-            display: inline-block;
-            width: 1rem;
-            height: 1rem;
-            border: 2px solid #5a67d8;
-            border-radius: 50%;
-            border-top-color: transparent;
-            animation: spin 1s linear infinite;
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .unsubscribe-form {
+                padding: 20px;
+            }
+
+            .button {
+                padding: 12px 20px;
+            }
         }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+        @media (max-width: 480px) {
+            .container {
+                padding: 15px;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .unsubscribe-form {
+                padding: 15px;
+            }
+
+            .button {
+                padding: 12px 20px;
+                font-size: 1em;
+        }
+
+            .resubscribe-link a {
+                padding: 6px 12px;
+                font-size: 0.9em;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Unsubscribe from NewsNexus Daily</h1>
+        <div class="header">
+            <h1><i class="fas fa-envelope-open-text"></i> Unsubscribe</h1>
+            <p>We're sorry to see you go. Please confirm your email to unsubscribe from NewsNexus Daily.</p>
+        </div>
+
+        <div class="unsubscribe-form">
         <form id="unsubscribeForm">
             <div class="form-group">
-                <label for="email">Enter your email address:</label>
-                <input type="email" id="email" name="email" required placeholder="your@email.com">
+                    <label for="email"><i class="fas fa-envelope"></i> Email Address</label>
+                    <input type="email" id="email" name="email" required placeholder="Enter your email address">
+                </div>
+
+                <button type="submit" class="button">
+                    <i class="fas fa-user-minus"></i> Unsubscribe
+                </button>
+            </form>
+
+            <div id="statusMessage" class="status-message"></div>
+
+            <div class="resubscribe-link">
+                <a href="/subscriber.html">
+                    <i class="fas fa-arrow-left"></i> Change your mind? Resubscribe here
+                </a>
             </div>
-            <button type="submit">Unsubscribe</button>
-        </form>
-        <div id="status" class="status"></div>
-        <div id="loading" class="loading"></div>
-        <a href="/subscriber.html" class="back-link">Back to Subscription Page</a>
+        </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const form = document.getElementById('unsubscribeForm');
-            const status = document.getElementById('status');
-            const loading = document.getElementById('loading');
+            const statusMessage = document.getElementById('statusMessage');
 
             // Check if email is provided in URL
             const urlParams = new URLSearchParams(window.location.search);
@@ -156,8 +275,7 @@
                 const email = document.getElementById('email').value;
                 
                 // Show loading
-                loading.style.display = 'block';
-                status.style.display = 'none';
+                statusMessage.style.display = 'none';
                 
                 try {
                     const response = await fetch(`/api/unsubscribe-by-email`, {
@@ -171,19 +289,16 @@
                     const data = await response.json();
 
                     if (data.success) {
-                        status.className = 'status success';
-                        status.textContent = 'You have been successfully unsubscribed from NewsNexus Daily updates.';
+                        statusMessage.className = 'status-message success';
+                        statusMessage.textContent = 'You have been successfully unsubscribed from NewsNexus Daily updates.';
                         form.reset();
                     } else {
-                        status.className = 'status error';
-                        status.textContent = data.message || 'Failed to unsubscribe. Please try again.';
+                        statusMessage.className = 'status-message error';
+                        statusMessage.textContent = data.message || 'Failed to unsubscribe. Please try again.';
                     }
                 } catch (error) {
-                    status.className = 'status error';
-                    status.textContent = 'An error occurred. Please try again later.';
-                } finally {
-                    loading.style.display = 'none';
-                    status.style.display = 'block';
+                    statusMessage.className = 'status-message error';
+                    statusMessage.textContent = 'An error occurred. Please try again later.';
                 }
             });
         });

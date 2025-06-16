@@ -30,10 +30,12 @@
             padding: 20px;
             overflow-x: hidden;
             width: 100%;
+            position: relative;
         }
 
         .container {
             max-width: 800px;
+            width: 100%;
             margin: 0 auto;
             background: white;
             border-radius: 15px;
@@ -232,6 +234,7 @@
 
             .container {
                 padding: 20px;
+                width: 100%;
             }
 
             .header h1 {
@@ -240,21 +243,25 @@
 
             .subscription-section {
                 padding: 20px;
+                width: 100%;
             }
 
             .form-group input,
             .form-group textarea,
             .form-group select {
                 padding: 12px;
+                width: 100%;
             }
 
             .subscribe-form-btn {
                 padding: 12px 20px;
+                width: 100%;
             }
 
             .nav-buttons {
                 flex-direction: column;
                 gap: 10px;
+                width: 100%;
             }
 
             .back-link, .manage-link {
@@ -263,6 +270,10 @@
         }
 
         @media (max-width: 480px) {
+            body {
+                padding: 5px;
+            }
+
             .container {
                 padding: 15px;
             }

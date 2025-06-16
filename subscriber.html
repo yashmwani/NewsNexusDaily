@@ -47,6 +47,32 @@
             margin-bottom: 30px;
             padding-bottom: 20px;
             border-bottom: 2px solid var(--accent-color);
+            position: relative;
+        }
+
+        .back-button {
+            position: absolute;
+            left: 0;
+            top: 0;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+
+        .back-button:hover {
+            background: var(--secondary-color);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
 
         .header h1 {
@@ -234,7 +260,7 @@
             align-items: center;
             gap: 8px;
             transition: all 0.3s ease;
-        }
+            }
 
         .topic-tag:hover {
             transform: translateY(-2px);
@@ -411,6 +437,13 @@
                 padding: 6px 12px;
                 font-size: 0.85em;
             }
+
+            .back-button {
+                position: relative;
+                margin-bottom: 20px;
+                width: 100%;
+                justify-content: center;
+            }
         }
 
         @media (max-width: 480px) {
@@ -466,8 +499,13 @@
     </style>
 </head>
 <body>
+    
     <div class="container">
+        
         <div class="header">
+            <button type="button" class="back-button" style="display: flex; align-items: center; gap: 8px; background: #4f46e5; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-size: 1em; font-weight: 500; cursor: pointer; text-decoration: none; margin-bottom: 20px; transition: all 0.3s ease; max-width: 220px;" onclick="window.location.href='/main.html'">
+                <i class="fas fa-arrow-left"></i> Back to News
+            </button>
             <h1><i class="fas fa-cog"></i> Manage Your Subscription</h1>
             <p>Update your preferences or unsubscribe from NewsNexus Daily</p>
         </div>

@@ -10,6 +10,7 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            max-width: 100%;
         }
 
         body {
@@ -19,10 +20,14 @@
             color: #333;
             line-height: 1.6;
             padding: 20px;
+            overflow-x: hidden;
+            width: 100%;
+            position: relative;
         }
 
         .container {
             max-width: 800px;
+            width: 100%;
             margin: 0 auto;
             background: rgba(255, 255, 255, 0.95);
             border-radius: 15px;
@@ -190,12 +195,62 @@
         }
 
         @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
             .container {
                 padding: 20px;
+                width: 100%;
             }
 
             .topics-container {
                 grid-template-columns: 1fr;
+                width: 100%;
+            }
+
+            .custom-topic-input {
+                width: 100%;
+            }
+
+            .custom-topic-input input {
+                width: 100%;
+            }
+
+            .add-topic-button {
+                width: 100%;
+                max-width: 200px;
+            }
+
+            .current-topics {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 5px;
+            }
+
+            .container {
+                padding: 15px;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .subscription-form {
+                padding: 15px;
+            }
+
+            .topic-label {
+                padding: 8px 12px;
+            }
+
+            .button {
+                padding: 10px 20px;
+                font-size: 0.95em;
             }
         }
 
@@ -213,18 +268,19 @@
         }
 
         .custom-topic-input {
-            display: flex;
-            gap: 10px;
+            display: block;
+            width: 100%;
             margin-bottom: 15px;
         }
 
         .custom-topic-input input {
-            flex: 1;
+            width: 100%;
             padding: 12px;
             border: 2px solid #e2e8f0;
             border-radius: 8px;
             font-size: 16px;
             transition: border-color 0.3s ease;
+            margin-bottom: 10px;
         }
 
         .custom-topic-input input:focus {
@@ -242,6 +298,10 @@
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
+            width: 100%;
+            max-width: 200px;
+            margin: 0 auto;
+            display: block;
         }
 
         .add-topic-button:hover {
@@ -291,10 +351,36 @@
         .unsubscribe-btn:hover {
             background: #c53030;
         }
+
+        .back-to-news-btn {
+            background: #5a67d8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: background 0.2s, transform 0.2s;
+            margin-bottom: 20px;
+            max-width: 220px;
+            width: auto;
+            display: block;
+            text-align: left;
+        }
+
+        .back-to-news-btn:hover {
+            background: #4c51bf;
+            transform: translateY(-2px);
+        }
     </style>
 </head>
 <body>
     <div class="container">
+        <button type="button" class="back-to-news-btn" onclick="window.location.href='/'">
+            Back to News
+        </button>
         <div class="header">
             <h1>Manage Your Subscription</h1>
             <p>Update your preferences or unsubscribe from NewsNexus Daily</p>

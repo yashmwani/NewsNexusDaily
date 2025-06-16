@@ -365,23 +365,23 @@ function createEmailTemplate(topics, summaries, articles = []) {
                         return `
                             <div class="topic">
                                 <h2>${topic}</h2>
-                                ${summaries[index].split('\n\n').map(block => {
-                                    if (block.startsWith('##')) {
-                                        const [title, ...content] = block.split('\n');
+                                    ${summaries[index].split('\n\n').map(block => {
+                                        if (block.startsWith('##')) {
+                                            const [title, ...content] = block.split('\n');
                                         // Find the matching article for this block
                                         const articleIndex = parseInt(content[0]?.match(/\[(\d+)\]/)?.[1]) - 1;
                                         const matchingArticle = topicArticles[articleIndex];
                                         
-                                        const processedContent = content.join('\n').replace(/\[(\d+)\]/g, (match, num) => {
+                                            const processedContent = content.join('\n').replace(/\[(\d+)\]/g, (match, num) => {
                                             const articleIndex = parseInt(num) - 1;
                                             const article = topicArticles[articleIndex];
-                                            console.log(`Looking for article with index ${articleIndex}:`, article);
-                                            if (article) {
+                                                console.log(`Looking for article with index ${articleIndex}:`, article);
+                                                if (article) {
                                                 return `<a href="${article.url}" target="_blank" class="news-link">[${num}]</a>`;
-                                            }
-                                            return match;
-                                        });
-                                        return `
+                                                }
+                                                return match;
+                                            });
+                                            return `
                                             <div class="article">
                                                 <h3>${title.replace('##', '').trim()}</h3>
                                                 <div class="article-content">
@@ -390,13 +390,13 @@ function createEmailTemplate(topics, summaries, articles = []) {
                                                 ${matchingArticle ? `
                                                     <a href="${matchingArticle.url}" target="_blank" class="read-more">
                                                         Read full article: ${matchingArticle.heading}
-                                                    </a>
+                                                        </a>
                                                 ` : ''}
-                                            </div>
-                                        `;
-                                    }
-                                    return `<p>${block}</p>`;
-                                }).join('')}
+                                                </div>
+                                            `;
+                                        }
+                                        return `<p>${block}</p>`;
+                                    }).join('')}
                             </div>
                         `;
                     }).join('')}

@@ -8,6 +8,7 @@ const OpenAI = require('openai');
 const cron = require('node-cron');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
+const axios = require('axios');
 
 const app = express();
 const server = http.createServer(app);
@@ -82,7 +83,9 @@ const transporter = nodemailer.createTransport({
     },
     tls: {
         rejectUnauthorized: false // Only for development
-    }
+    },
+    debug: true, // Enable debug logging
+    logger: true // Enable logger
 });
 
 // Set default sender email - Replace with your verified email address
@@ -95,9 +98,121 @@ const DEFAULT_SENDER = {
 transporter.verify(function(error, success) {
     if (error) {
         console.error('SMTP Connection Error:', error);
+        console.error('SMTP Configuration:', {
+            host: process.env.SMTP_HOST,
+            port: process.env.SMTP_PORT,
+            user: process.env.SMTP_USER,
+            // Don't log the full API key for security
+            passLength: process.env.SMTP_PASS ? process.env.SMTP_PASS.length : 0
+        });
     } else {
         console.log('SMTP Server is ready to send emails');
     }
+});
+
+// Add this new test endpoint right after the transporter configuration
+app.get('/api/test-sendgrid', async (req, res) => {
+    try {
+        console.log('Testing SendGrid configuration...');
+        console.log('SMTP Configuration:', {
+            host: process.env.SMTP_HOST,
+            port: process.env.SMTP_PORT,
+            user: process.env.SMTP_USER,
+            sender: DEFAULT_SENDER
+        });
+
+        const testEmailContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: #4a5568; color: white; padding: 20px; text-align: center; }
+                    .content { padding: 20px; }
+                    .success { color: #48bb78; font-weight: bold; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>SendGrid Test Email</h1>
+                    </div>
+                    <div class="content">
+                        <p class="success">✓ This is a test email from NewsNexus Daily</p>
+                        <p>If you're receiving this email, your SendGrid configuration is working correctly!</p>
+                        <p>Configuration Details:</p>
+                        <ul>
+                            <li>SMTP Host: ${process.env.SMTP_HOST}</li>
+                            <li>SMTP Port: ${process.env.SMTP_PORT}</li>
+                            <li>Sender: ${DEFAULT_SENDER.name} <${DEFAULT_SENDER.address}></li>
+                        </ul>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `;
+
+        // First verify the SMTP connection
+        await new Promise((resolve, reject) => {
+            transporter.verify(function(error, success) {
+                if (error) {
+                    console.error('SMTP Verification Error:', error);
+                    reject(error);
+                } else {
+                    console.log('SMTP Server is ready to send emails');
+                    resolve(success);
+                }
+            });
+        });
+
+        // Try to send the test email
+        const info = await transporter.sendMail({
+            from: `"${DEFAULT_SENDER.name}" <${DEFAULT_SENDER.address}>`,
+            to: DEFAULT_SENDER.address,
+            subject: 'SendGrid Test - NewsNexus Daily',
+            html: testEmailContent
+        });
+
+        console.log('Email sent successfully:', info);
+
+        res.json({
+            success: true,
+            message: 'Test email sent successfully!',
+            details: {
+                messageId: info.messageId,
+                response: info.response,
+                host: process.env.SMTP_HOST,
+                port: process.env.SMTP_PORT,
+                user: process.env.SMTP_USER,
+                sender: DEFAULT_SENDER
+            }
+        });
+    } catch (error) {
+        console.error('Error in SendGrid test:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to send test email',
+            error: error.message,
+            stack: error.stack,
+            details: {
+                host: process.env.SMTP_HOST,
+                port: process.env.SMTP_PORT,
+                user: process.env.SMTP_USER,
+                sender: DEFAULT_SENDER
+            }
+        });
+    }
+});
+
+// Add error event listener to transporter
+transporter.on('error', (error) => {
+    console.error('Transporter Error:', error);
+});
+
+// Add success event listener to transporter
+transporter.on('success', (info) => {
+    console.log('Email sent successfully:', info);
 });
 
 // Email template function
@@ -131,13 +246,18 @@ function createEmailTemplate(topics, summaries, articles = []) {
                     padding-bottom: 10px;
                     margin-bottom: 20px;
                 }
-                .article { margin-bottom: 20px; }
+                .article { 
+                    margin-bottom: 30px;
+                    padding: 15px;
+                    background: #f8fafc;
+                    border-radius: 8px;
+                    border-left: 4px solid #5a67d8;
+                }
                 .article h3 { 
                     color: #2d3748; 
                     margin-bottom: 15px;
                     font-size: 1.3em;
-                    border-left: 4px solid #5a67d8;
-                    padding-left: 10px;
+                    padding-bottom: 5px;
                 }
                 .article-content {
                     margin-bottom: 15px;
@@ -214,6 +334,22 @@ function createEmailTemplate(topics, summaries, articles = []) {
                     background: rgba(90, 103, 216, 0.2);
                     transform: translateY(-1px);
                 }
+                .news-link {
+                    color: #5a67d8;
+                    text-decoration: none;
+                    font-weight: 600;
+                    transition: all 0.3s ease;
+                    display: inline-block;
+                    margin: 0 2px;
+                    padding: 2px 5px;
+                    border-radius: 4px;
+                    background: rgba(90, 103, 216, 0.1);
+                }
+                .news-link:hover {
+                    color: #4c51bf;
+                    transform: translateY(-1px);
+                    background: rgba(90, 103, 216, 0.2);
+                }
             </style>
         </head>
         <body>
@@ -229,34 +365,38 @@ function createEmailTemplate(topics, summaries, articles = []) {
                         return `
                             <div class="topic">
                                 <h2>${topic}</h2>
-                                <div class="article">
-                                    ${summaries[index].split('\n\n').map(block => {
-                                        if (block.startsWith('##')) {
-                                            const [title, ...content] = block.split('\n');
-                                            const processedContent = content.join('\n').replace(/\[(\d+)\]/g, (match, num) => {
-                                                const articleIndex = parseInt(num);
-                                                const article = topicArticles.find(a => a.index === articleIndex);
-                                                console.log(`Looking for article with index ${articleIndex}:`, article);
-                                                if (article) {
-                                                    return `<a href="${article.url}" target="_blank" title="${article.title}">[${num}]</a>`;
-                                                }
-                                                return match;
-                                            });
-                                            return `
+                                ${summaries[index].split('\n\n').map(block => {
+                                    if (block.startsWith('##')) {
+                                        const [title, ...content] = block.split('\n');
+                                        // Find the matching article for this block
+                                        const articleIndex = parseInt(content[0]?.match(/\[(\d+)\]/)?.[1]) - 1;
+                                        const matchingArticle = topicArticles[articleIndex];
+                                        
+                                        const processedContent = content.join('\n').replace(/\[(\d+)\]/g, (match, num) => {
+                                            const articleIndex = parseInt(num) - 1;
+                                            const article = topicArticles[articleIndex];
+                                            console.log(`Looking for article with index ${articleIndex}:`, article);
+                                            if (article) {
+                                                return `<a href="${article.url}" target="_blank" class="news-link">[${num}]</a>`;
+                                            }
+                                            return match;
+                                        });
+                                        return `
+                                            <div class="article">
                                                 <h3>${title.replace('##', '').trim()}</h3>
                                                 <div class="article-content">
                                                     ${processedContent}
-                                                    ${topicArticles.map(article => `
-                                                        <a href="${article.url}" target="_blank" class="read-more">
-                                                            Read full article: ${article.title}
-                                                        </a>
-                                                    `).join('')}
                                                 </div>
-                                            `;
-                                        }
-                                        return `<p>${block}</p>`;
-                                    }).join('')}
-                                </div>
+                                                ${matchingArticle ? `
+                                                    <a href="${matchingArticle.url}" target="_blank" class="read-more">
+                                                        Read full article: ${matchingArticle.heading}
+                                                    </a>
+                                                ` : ''}
+                                            </div>
+                                        `;
+                                    }
+                                    return `<p>${block}</p>`;
+                                }).join('')}
                             </div>
                         `;
                     }).join('')}
@@ -390,7 +530,7 @@ async function fetchNews(topic) {
             return [];
         }
 
-        // Filter and index articles
+        // Filter and index articles with headings
         const relevantArticles = response.articles
             .filter(article => {
                 const title = article.title?.toLowerCase() || '';
@@ -402,18 +542,33 @@ async function fetchNews(topic) {
             })
             .map((article, index) => ({
                 ...article,
-                index: index + 1 // Add 1-based index
+                index: index + 1, // Add 1-based index
+                heading: article.title, // Store the heading
+                category: determineCategory(article.source.name) // Add category based on source
             }));
 
         console.log('Relevant articles found:', relevantArticles.length);
         return relevantArticles.length > 0 ? relevantArticles : response.articles.map((article, index) => ({
             ...article,
-            index: index + 1
+            index: index + 1,
+            heading: article.title,
+            category: determineCategory(article.source.name)
         }));
     } catch (error) {
         console.error('Error fetching news:', error);
         return [];
     }
+}
+
+// Helper function to determine category based on source name
+function determineCategory(sourceName) {
+    const source = sourceName.toLowerCase();
+    if (source.includes('tech')) return 'Technology';
+    if (source.includes('sport')) return 'Sports';
+    if (source.includes('business')) return 'Business';
+    if (source.includes('politics')) return 'Politics';
+    if (source.includes('entertainment')) return 'Entertainment';
+    return 'General';
 }
 
 // AI summarization with sources and formatted headings
@@ -424,17 +579,24 @@ async function summarizeNews(articles) {
         }
 
         const articlesText = articles.map((article, index) => {
-            return `[${index + 1}] ${article.title}\n${article.description || ''}\nSource: ${article.source.name}\nURL: ${article.url}\n\n`;
+            return `[${index + 1}] ${article.heading}\n${article.description || ''}\nSource: ${article.source.name}\nURL: ${article.url}\n\n`;
         }).join('\n');
 
-        const prompt = `Please summarize the following news articles. Include key points and maintain the article reference numbers [1], [2], etc. in your summary:\n\n${articlesText}`;
+        const prompt = `Please summarize the following news articles. Include key points and maintain the article reference numbers [1], [2], etc. in your summary. Each article should be on a new line and should include its heading. Format each article summary as follows:
+
+## [Article Heading]
+[Summary content with reference numbers]
+
+Here are the articles to summarize:
+
+${articlesText}`;
 
         const completion = await openai.chat.completions.create({
-            model: "gpt-3.5-turbo",
+            model: "gpt-4.1",
             messages: [
                 {
                     role: "system",
-                    content: "You are a news summarizer. Summarize the articles while maintaining the reference numbers [1], [2], etc. in your text."
+                    content: "You are a news summarizer. Summarize the articles while maintaining the reference numbers [1], [2], etc. in your text. Every new article should be on new line and should have heading of the news. Use the exact headings provided in the articles."
                 },
                 {
                     role: "user",
@@ -676,6 +838,75 @@ app.get('/api/send-test-emails', async (req, res) => {
             failed: 0,
             details: []
         };
+
+        if (subscribers.length === 0) {
+            // If no subscribers found, send a test email to the configured sender
+            try {
+                const testEmailContent = `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <style>
+                            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                            .header { background: #4a5568; color: white; padding: 20px; text-align: center; }
+                            .content { padding: 20px; }
+                            .success { color: #48bb78; font-weight: bold; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <div class="header">
+                                <h1>SMTP Configuration Test</h1>
+                            </div>
+                            <div class="content">
+                                <p class="success">✓ SMTP Configuration Successful!</p>
+                                <p>Your email configuration is working correctly. You will now be able to receive daily news summaries.</p>
+                                <p>Configuration Details:</p>
+                                <ul>
+                                    <li>SMTP Host: ${process.env.SMTP_HOST}</li>
+                                    <li>SMTP Port: ${process.env.SMTP_PORT}</li>
+                                    <li>Sender: ${DEFAULT_SENDER.name} <${DEFAULT_SENDER.address}></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </body>
+                    </html>
+                `;
+
+                await transporter.sendMail({
+                    from: `"${DEFAULT_SENDER.name}" <${DEFAULT_SENDER.address}>`,
+                    to: DEFAULT_SENDER.address,
+                    subject: 'SendGrid SMTP Test - NewsNexus Daily',
+                    html: testEmailContent
+                });
+
+                return res.json({
+                    success: true,
+                    message: 'Test email sent successfully to default sender!',
+                    details: {
+                        host: process.env.SMTP_HOST,
+                        port: process.env.SMTP_PORT,
+                        user: process.env.SMTP_USER,
+                        sender: DEFAULT_SENDER,
+                        recipient: DEFAULT_SENDER.address
+                    }
+                });
+            } catch (error) {
+                console.error('Error sending test email:', error);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Failed to send test email',
+                    error: error.message,
+                    details: {
+                        host: process.env.SMTP_HOST,
+                        port: process.env.SMTP_PORT,
+                        user: process.env.SMTP_USER,
+                        sender: DEFAULT_SENDER
+                    }
+                });
+            }
+        }
 
         for (const subscriber of subscribers) {
             try {
@@ -921,8 +1152,42 @@ app.post('/api/unsubscribe-by-email', async (req, res) => {
     }
 });
 
-// Database connection and server start
-server.listen(4000, '0.0.0.0', () => {
-    console.log('Server running on http://localhost:4000');
+// AI Assistant Chat Route
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { message } = req.body;
+    const completion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        { role: "system", content: "You are a helpful assistant for NewsNexus Daily. You can help users with news-related queries and provide information about the service." },
+        { role: "user", content: message }
+      ],
+    });
+
+    // Fetch news headlines from News API
+    const newsResponse = await axios.get(`https://newsapi.org/v2/top-headlines?country=us&apiKey=${process.env.NEWS_API_KEY}`);
+    const newsArticles = newsResponse.data.articles;
+
+    // Format news headlines as HTML with hyperlinks and descriptions
+    const newsHeadlines = newsArticles.map(article => {
+      const description = article.description ? `<p>${article.description}</p>` : '';
+      return `<h3><a href="${article.url}" target="_blank">${article.title}</a></h3>${description}`;
+    }).join('');
+
+    // Combine AI response with news headlines
+    const aiResponse = completion.choices[0].message.content;
+    const combinedResponse = `${aiResponse}\n\n<h2>Latest News Headlines:</h2>\n${newsHeadlines}`;
+
+    res.json({ response: combinedResponse });
+  } catch (error) {
+    console.error('Error in AI chat:', error);
+    res.status(500).json({ error: 'Failed to process chat request' });
+  }
+});
+
+// Update the server listen section at the bottom of the file
+const PORT = process.env.PORT || 4000;
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on port ${PORT}`);
     console.log('Server is ready to accept connections');
 }); 

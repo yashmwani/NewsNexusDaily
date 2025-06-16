@@ -810,6 +810,11 @@ async function fetchRecentNews() {
                 minute: 'numeric',
                 hour12: true
             });
+            const date = publishedDate.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
 
             return {
                 category,
@@ -817,6 +822,7 @@ async function fetchRecentNews() {
                 summary: article.description || 'No description available',
                 source: article.source.name,
                 time,
+                date,
                 url: article.url
             };
         }));
@@ -1157,28 +1163,20 @@ app.post('/api/chat', async (req, res) => {
   try {
     const { message } = req.body;
     const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: "gpt-4o",
       messages: [
-        { role: "system", content: "You are a helpful assistant for NewsNexus Daily. You can help users with news-related queries and provide information about the service." },
+        {
+          role: "system",
+          content: "You are a real-time news assistant. For any news-related query, ALWAYS respond with 3 to 5 news items, even if the query is specific. Only include news from trusted, reputable sources such as BBC, Reuters, The New York Times, The Washington Post, The Guardian, Associated Press, and similar. For each news item, provide: a clear heading (the article title), a short summary, and a direct hyperlink to the original article. List each news item clearly and separately, using bullet points or a numbered list if needed."
+        },
         { role: "user", content: message }
       ],
+      temperature: 0.7,
+      max_tokens: 800
     });
 
-    // Fetch news headlines from News API
-    const newsResponse = await axios.get(`https://newsapi.org/v2/top-headlines?country=us&apiKey=${process.env.NEWS_API_KEY}`);
-    const newsArticles = newsResponse.data.articles;
-
-    // Format news headlines as HTML with hyperlinks and descriptions
-    const newsHeadlines = newsArticles.map(article => {
-      const description = article.description ? `<p>${article.description}</p>` : '';
-      return `<h3><a href="${article.url}" target="_blank">${article.title}</a></h3>${description}`;
-    }).join('');
-
-    // Combine AI response with news headlines
     const aiResponse = completion.choices[0].message.content;
-    const combinedResponse = `${aiResponse}\n\n<h2>Latest News Headlines:</h2>\n${newsHeadlines}`;
-
-    res.json({ response: combinedResponse });
+    res.json({ response: aiResponse });
   } catch (error) {
     console.error('Error in AI chat:', error);
     res.status(500).json({ error: 'Failed to process chat request' });

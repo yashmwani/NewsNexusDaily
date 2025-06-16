@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Subscribe - NewsNexus Daily</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
     <style>
         * {
             margin: 0;
@@ -317,64 +318,70 @@
 
         <div class="subscription-section">
             <h2>Subscription Details</h2>
-            <form id="subscriptionForm">
+            <form id="subscriptionForm" autocomplete="off">
                 <div class="form-group">
                     <label for="email">Email Address</label>
                     <input type="email" id="email" name="email" required placeholder="your@email.com">
                 </div>
                 <div class="form-group">
                     <label for="topics">News Topics</label>
-                    <textarea id="topics" name="topics" placeholder="e.g., technology, artificial intelligence, startups, crypto, science" required></textarea>
+                    <textarea id="topics" name="topics" required placeholder="e.g., technology, science"></textarea>
                     <small>Enter topics you want to receive daily summaries about (comma-separated)</small>
                 </div>
                 <div class="form-group">
                     <label for="timezone">Preferred Timezone</label>
-                    <select id="timezone" name="timezone">
-                        <option value="America/New_York">Eastern Time (ET)</option>
-                        <option value="America/Chicago">Central Time (CT)</option>
-                        <option value="America/Denver">Mountain Time (MT)</option>
-                        <option value="America/Los_Angeles">Pacific Time (PT)</option>
-                        <option value="UTC">UTC</option>
-                    </select>
+                    <select id="timezone" name="timezone"></select>
                 </div>
-                <button type="submit" class="subscribe-form-btn">
-                    Subscribe to Daily News
-                </button>
+                <button type="submit" class="subscribe-form-btn">Subscribe to Daily News</button>
             </form>
-            <div class="success-message" id="successMessage">
-                Successfully subscribed! You'll receive your first news summary tomorrow at 8:00 AM.
-            </div>
+            <div class="success-message" id="successMessage"></div>
         </div>
     </div>
 
     <script>
-        // Handle subscription form
+        // Populate all IANA timezones
+        const timezones = Intl.supportedValuesOf ? Intl.supportedValuesOf('timeZone') : [
+            "UTC","Europe/London","Europe/Paris","Europe/Berlin","Europe/Moscow","Asia/Kolkata","Asia/Tokyo","Asia/Shanghai","Asia/Singapore","Asia/Dubai","Australia/Sydney","America/New_York","America/Chicago","America/Denver","America/Los_Angeles","America/Sao_Paulo","Africa/Johannesburg","Pacific/Auckland"
+        ];
+        const timezoneSelect = document.getElementById('timezone');
+        timezoneSelect.innerHTML = timezones.map(tz => `<option value="${tz}">${tz}</option>`).join('');
+        if (window.Choices) {
+            new Choices(timezoneSelect, {
+                searchEnabled: true,
+                itemSelectText: '',
+                shouldSort: false
+            });
+        }
+
         document.getElementById('subscriptionForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            
-            const email = document.getElementById('email').value;
-            const topics = document.getElementById('topics').value.split(',').map(t => t.trim());
+            const email = document.getElementById('email').value.trim();
+            const topics = document.getElementById('topics').value.split(',').map(t => t.trim()).filter(Boolean);
             const timezone = document.getElementById('timezone').value;
-            
+
+            if (!email || !topics.length || !timezone) {
+                alert('Please fill all fields.');
+                return;
+            }
+
             try {
                 const response = await fetch('/api/subscribe', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, topics, timezone })
                 });
-
                 const data = await response.json();
-                
                 if (data.success) {
+                    document.getElementById('successMessage').textContent = 'Successfully subscribed!';
                     document.getElementById('successMessage').style.display = 'block';
                     this.reset();
                 } else {
-                    alert('Subscription failed: ' + data.message);
+                    document.getElementById('successMessage').textContent = data.message || 'Failed to subscribe.';
+                    document.getElementById('successMessage').style.display = 'block';
                 }
             } catch (error) {
-                alert('Error subscribing: ' + error.message);
+                document.getElementById('successMessage').textContent = 'Error subscribing: ' + error.message;
+                document.getElementById('successMessage').style.display = 'block';
             }
         });
     </script>

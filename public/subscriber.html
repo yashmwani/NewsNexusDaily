@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NewsNexus Daily - Manage Subscription</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
     <style>
         * {
             margin: 0;
@@ -427,13 +428,7 @@
 
                 <div class="form-group">
                     <label for="timezone">Timezone</label>
-                    <select id="timezone" name="timezone" class="timezone-select">
-                        <option value="UTC">UTC</option>
-                        <option value="America/New_York">Eastern Time</option>
-                        <option value="America/Chicago">Central Time</option>
-                        <option value="America/Denver">Mountain Time</option>
-                        <option value="America/Los_Angeles">Pacific Time</option>
-                    </select>
+                    <select id="timezone" name="timezone" class="timezone-select"></select>
                 </div>
 
                 <button type="submit" class="button">Update Subscription</button>
@@ -622,6 +617,19 @@
                 } catch (error) {
                     showStatus('An error occurred while unsubscribing', 'error');
                 }
+            });
+
+            // Populate all IANA timezones
+            const timezones = Intl.supportedValuesOf ? Intl.supportedValuesOf('timeZone') : [
+                "UTC","Europe/London","Europe/Paris","Europe/Berlin","Europe/Moscow","Asia/Kolkata","Asia/Tokyo","Asia/Shanghai","Asia/Singapore","Asia/Dubai","Australia/Sydney","America/New_York","America/Chicago","America/Denver","America/Los_Angeles","America/Sao_Paulo","Africa/Johannesburg","Pacific/Auckland"
+            ];
+            const timezoneSelect = document.getElementById('timezone');
+            timezoneSelect.innerHTML = timezones.map(tz => `<option value="${tz}">${tz}</option>`).join('');
+            // Initialize Choices.js for search
+            const choices = new Choices(timezoneSelect, {
+                searchEnabled: true,
+                itemSelectText: '',
+                shouldSort: false
             });
         });
     </script>

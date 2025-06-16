@@ -11,6 +11,7 @@ const crypto = require('crypto');
 const axios = require('axios');
 const sgMail = require('@sendgrid/mail');
 const schedule = require('node-schedule');
+const moment = require('moment-timezone');
 
 const app = express();
 const server = http.createServer(app);
@@ -605,80 +606,56 @@ app.get('/test-email', async (req, res) => {
   }
 });
 
-// Schedule daily news email at 8:00 AM
-schedule.scheduleJob('0 8 * * *', async () => {
+// Schedule job to run every minute and send emails at 8:00 AM in each subscriber's timezone (testing)
+schedule.scheduleJob('*/5 * * * *', async () => {
   try {
-    console.log('\n=== STARTING DAILY NEWS EMAIL DISTRIBUTION ===');
-    console.log('Current time:', new Date().toLocaleString());
-    
-    // Fetch all subscribers and filter active ones
-        const subscribers = await Subscriber.find({ isActive: true });
-    console.log(`\nFound ${subscribers.length} active subscribers`);
+    const now = new Date();
+    console.log(`\n=== TIMEZONE-AWARE EMAIL JOB ===`);
+    console.log(`Server time: ${now.toISOString()}`);
+    const subscribers = await Subscriber.find({ isActive: true });
+    console.log(`Active subscribers: ${subscribers.length}`);
 
-    if (subscribers.length === 0) {
-      console.log('No active subscribers found. Skipping email distribution.');
-      return;
-    }
-
-    // Process each subscriber
     for (const subscriber of subscribers) {
-      try {
-        console.log(`\nProcessing subscriber: ${subscriber.email}`);
-        console.log('Topics:', subscriber.topics);
-
-        if (!subscriber.topics || subscriber.topics.length === 0) {
-          console.log(`Skipping ${subscriber.email} - no topics found`);
+      if (!subscriber.topics || subscriber.topics.length === 0) continue;
+      const userTime = moment.tz(now, subscriber.timezone);
+      console.log(`Checking: ${subscriber.email} | TZ: ${subscriber.timezone} | User time: ${userTime.format('YYYY-MM-DD HH:mm')}`);
+      // Send if it's between 8:00 and 8:19 AM in their timezone (wider window for testing)
+      if (userTime.hour() === 8 && userTime.minute() < 10) {
+        try {
+          console.log(`--> SENDING EMAIL to ${subscriber.email} (user time: ${userTime.format('HH:mm')})`);
+          // Fetch articles for each topic
+          const articlesByTopic = await Promise.all(
+            subscriber.topics.map(async (topic) => await fetchNews(topic))
+          );
+          // Summarize news for each topic
+          const summaries = await Promise.all(
+            articlesByTopic.map(async (articles) => await summarizeNews(articles))
+          );
+          // Generate email content using createEmailTemplate
+          const emailContent = createEmailTemplate(
+            subscriber.topics,
+            summaries,
+            articlesByTopic
+          );
+          // Prepare and send email
+          const msg = {
+            to: subscriber.email,
+            from: 'yashmwani@gmail.com',
+            subject: 'Your Personalized Daily News Update - NewsNexus Daily',
+            html: emailContent
+          };
+          const info = await transporter.sendMail(msg);
+          console.log(`Email sent successfully to ${subscriber.email}`);
+        } catch (error) {
+          console.error(`Error processing subscriber ${subscriber.email}:`, error);
           continue;
         }
-
-        // Fetch articles for each topic
-        const articlesByTopic = await Promise.all(
-          subscriber.topics.map(async (topic) => await fetchNews(topic))
-        );
-
-        // Summarize news for each topic
-        const summaries = await Promise.all(
-          articlesByTopic.map(async (articles) => await summarizeNews(articles))
-        );
-
-        // Generate email content using createEmailTemplate
-        const emailContent = createEmailTemplate(
-          subscriber.topics,
-          summaries,
-          articlesByTopic
-        );
-
-        // Prepare and send email
-        const msg = {
-          to: subscriber.email,
-          from: 'yashmwani@gmail.com',
-          subject: 'Your Personalized Daily News Update - NewsNexus Daily',
-          html: emailContent
-        };
-
-        console.log(`Attempting to send email to ${subscriber.email}...`);
-        const info = await transporter.sendMail(msg);
-        console.log(`Email sent successfully to ${subscriber.email}`);
-        console.log('SMTP Response:', info);
-
-      } catch (error) {
-        console.error(`Error processing subscriber ${subscriber.email}:`, error);
-        console.error('Error details:', {
-          message: error.message,
-          stack: error.stack
-        });
-        continue;
       }
     }
-
-    console.log('\n=== DAILY NEWS EMAIL DISTRIBUTION COMPLETED ===');
-    } catch (error) {
+    console.log('=== END OF JOB ===');
+  } catch (error) {
     console.error('Error in scheduled news email distribution:', error);
-    console.error('Error details:', {
-      message: error.message,
-      stack: error.stack
-    });
-    }
+  }
 });
 
 // Recent news endpoint

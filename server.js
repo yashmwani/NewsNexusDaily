@@ -1,0 +1,928 @@
+require('dotenv').config();
+const express = require('express');
+const mongoose = require('mongoose');
+const http = require('http');
+const socketIo = require('socket.io');
+const NewsAPI = require('newsapi');
+const OpenAI = require('openai');
+const cron = require('node-cron');
+const nodemailer = require('nodemailer');
+const crypto = require('crypto');
+
+const app = express();
+const server = http.createServer(app);
+const io = socketIo(server);
+
+// Serve static files from public directory
+app.use(express.static('public'));
+app.use(express.json());
+
+// Initialize APIs
+const newsapi = new NewsAPI(process.env.NEWS_API_KEY);
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// MongoDB connection
+mongoose.connect(process.env.MONGODB_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+})
+.then(() => console.log('Connected to MongoDB'))
+.catch(err => console.error('MongoDB connection error:', err));
+
+// Subscriber Schema
+const subscriberSchema = new mongoose.Schema({
+    email: {
+        type: String,
+        required: true,
+        unique: true,
+        trim: true,
+        lowercase: true
+    },
+    topics: [{
+        type: String,
+        required: true
+    }],
+    timezone: {
+        type: String,
+        required: true
+    },
+    isActive: {
+        type: Boolean,
+        default: true
+    },
+    unsubscribeToken: {
+        type: String,
+        unique: true
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now
+    }
+});
+
+// Generate unsubscribe token before saving
+subscriberSchema.pre('save', function(next) {
+    if (!this.unsubscribeToken) {
+        this.unsubscribeToken = crypto.randomBytes(32).toString('hex');
+    }
+    next();
+});
+
+// Create model with explicit collection name
+const Subscriber = mongoose.model('Subscriber', subscriberSchema, 'subscribers');
+
+// Email transporter with enhanced configuration
+const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: process.env.SMTP_PORT,
+    secure: false,
+    auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+    },
+    tls: {
+        rejectUnauthorized: false // Only for development
+    }
+});
+
+// Set default sender email - Replace with your verified email address
+const DEFAULT_SENDER = {
+    name: 'NewsNexus Daily',
+    address: 'yashmwani@gmail.com' // Replace with your verified email
+};
+
+// Verify SMTP connection
+transporter.verify(function(error, success) {
+    if (error) {
+        console.error('SMTP Connection Error:', error);
+    } else {
+        console.log('SMTP Server is ready to send emails');
+    }
+});
+
+// Email template function
+function createEmailTemplate(topics, summaries, articles = []) {
+    return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { 
+                    background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+                    color: white; 
+                    padding: 20px; 
+                    text-align: center;
+                    border-radius: 10px;
+                    margin-bottom: 20px;
+                }
+                .content { padding: 20px; }
+                .topic { 
+                    margin-bottom: 30px;
+                    background: #fff;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    padding: 20px;
+                }
+                .topic h2 { 
+                    color: #2d3748; 
+                    border-bottom: 2px solid #e2e8f0; 
+                    padding-bottom: 10px;
+                    margin-bottom: 20px;
+                }
+                .article { margin-bottom: 20px; }
+                .article h3 { 
+                    color: #2d3748; 
+                    margin-bottom: 15px;
+                    font-size: 1.3em;
+                    border-left: 4px solid #5a67d8;
+                    padding-left: 10px;
+                }
+                .article-content {
+                    margin-bottom: 15px;
+                    line-height: 1.8;
+                }
+                .article a { 
+                    color: #5a67d8; 
+                    text-decoration: none;
+                    font-weight: 600;
+                    display: inline-block;
+                    margin: 0 2px;
+                    padding: 2px 5px;
+                    border-radius: 4px;
+                    background: rgba(90, 103, 216, 0.1);
+                    transition: all 0.3s ease;
+                }
+                .article a:hover { 
+                    color: #4c51bf;
+                    background: rgba(90, 103, 216, 0.2);
+                    transform: translateY(-1px);
+                }
+                .footer { 
+                    text-align: center; 
+                    padding: 20px; 
+                    font-size: 0.9em; 
+                    color: #718096;
+                    border-top: 1px solid #e2e8f0;
+                    margin-top: 30px;
+                }
+                .unsubscribe-link {
+                    color: #e53e3e;
+                    text-decoration: none;
+                    font-weight: 500;
+                    padding: 5px 10px;
+                    border-radius: 4px;
+                    background: rgba(229, 62, 62, 0.1);
+                    transition: all 0.3s ease;
+                    display: inline-block;
+                    margin-top: 10px;
+                }
+                .unsubscribe-link:hover {
+                    background: rgba(229, 62, 62, 0.2);
+                    text-decoration: none;
+                }
+                .source-link {
+                    color: #718096;
+                    font-size: 0.9em;
+                    font-style: italic;
+                    margin-top: 10px;
+                }
+                .source-link a {
+                    color: #4a5568;
+                    text-decoration: none;
+                    font-weight: 500;
+                    padding: 2px 5px;
+                    border-radius: 3px;
+                    background: rgba(74, 85, 104, 0.1);
+                }
+                .source-link a:hover {
+                    background: rgba(74, 85, 104, 0.2);
+                }
+                .read-more {
+                    display: inline-block;
+                    margin-top: 10px;
+                    color: #5a67d8;
+                    text-decoration: none;
+                    font-weight: 500;
+                    padding: 5px 10px;
+                    border-radius: 4px;
+                    background: rgba(90, 103, 216, 0.1);
+                    transition: all 0.3s ease;
+                }
+                .read-more:hover {
+                    background: rgba(90, 103, 216, 0.2);
+                    transform: translateY(-1px);
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>Your Daily News Summary</h1>
+                    <p>Stay informed with the latest updates</p>
+                </div>
+                <div class="content">
+                    ${topics.map((topic, index) => {
+                        const topicArticles = articles[index] || [];
+                        console.log(`Processing topic ${topic} with ${topicArticles.length} articles`);
+                        return `
+                            <div class="topic">
+                                <h2>${topic}</h2>
+                                <div class="article">
+                                    ${summaries[index].split('\n\n').map(block => {
+                                        if (block.startsWith('##')) {
+                                            const [title, ...content] = block.split('\n');
+                                            const processedContent = content.join('\n').replace(/\[(\d+)\]/g, (match, num) => {
+                                                const articleIndex = parseInt(num);
+                                                const article = topicArticles.find(a => a.index === articleIndex);
+                                                console.log(`Looking for article with index ${articleIndex}:`, article);
+                                                if (article) {
+                                                    return `<a href="${article.url}" target="_blank" title="${article.title}">[${num}]</a>`;
+                                                }
+                                                return match;
+                                            });
+                                            return `
+                                                <h3>${title.replace('##', '').trim()}</h3>
+                                                <div class="article-content">
+                                                    ${processedContent}
+                                                    ${topicArticles.map(article => `
+                                                        <a href="${article.url}" target="_blank" class="read-more">
+                                                            Read full article: ${article.title}
+                                                        </a>
+                                                    `).join('')}
+                                                </div>
+                                            `;
+                                        }
+                                        return `<p>${block}</p>`;
+                                    }).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                <div class="footer">
+                    <p>This email was sent by NewsNexus Daily.</p>
+                    <p>To manage your subscription preferences, <a href="http://localhost:4000/subscriber.html" class="unsubscribe-link">click here</a>.</p>
+                    <p class="source-link">Sources: ${topics.map((topic, index) => {
+                        const topicArticles = articles[index] || [];
+                        return topicArticles.map(article => 
+                            `<a href="${article.url}" target="_blank">${article.source.name}</a>`
+                        ).join(', ');
+                    }).join(' | ')}</p>
+                </div>
+            </div>
+        </body>
+        </html>
+    `;
+}
+
+// Routes
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/main.html');
+});
+
+app.get('/subscribe', (req, res) => {
+    res.sendFile(__dirname + '/public/subscribe.html');
+});
+
+app.post('/api/subscribe', async (req, res) => {
+    try {
+        const { email, topics, timezone } = req.body;
+
+        // Validate input
+        if (!email || !topics || !Array.isArray(topics) || topics.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email and at least one topic are required'
+            });
+        }
+
+        // Check if subscriber exists (including inactive ones)
+        let subscriber = await Subscriber.findOne({ email });
+        
+        if (subscriber) {
+            // Update existing subscriber
+            subscriber.topics = topics;
+            subscriber.timezone = timezone || 'UTC';
+            subscriber.isActive = true; // Reactivate if previously unsubscribed
+            await subscriber.save();
+            return res.json({
+                success: true,
+                message: 'Subscription updated successfully!',
+                subscriber
+            });
+        }
+
+        // Create new subscriber
+        subscriber = new Subscriber({
+            email,
+            topics,
+            timezone: timezone || 'UTC',
+            isActive: true
+        });
+
+        await subscriber.save();
+        
+        res.json({
+            success: true,
+            message: 'Successfully subscribed!',
+            subscriber
+        });
+    } catch (error) {
+        console.error('Subscription error:', error);
+        res.status(400).json({
+            success: false,
+            message: error.message || 'Failed to subscribe'
+        });
+    }
+});
+
+// Add route to get subscriber topics
+app.get('/api/subscriber/:email', async (req, res) => {
+    try {
+        const subscriber = await Subscriber.findOne({ email: req.params.email });
+        if (!subscriber) {
+            return res.status(404).json({
+                success: false,
+                message: 'Subscriber not found'
+            });
+        }
+        res.json({
+            success: true,
+            topics: subscriber.topics,
+            timezone: subscriber.timezone
+        });
+    } catch (error) {
+        console.error('Error fetching subscriber:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch subscriber data'
+        });
+    }
+});
+
+// Real-time news fetching
+async function fetchNews(topic) {
+    try {
+        console.log('Fetching news for topic:', topic);
+        
+        // Handle sports queries specifically
+        let searchQuery = topic;
+        if (topic.toLowerCase().includes('football') || 
+            topic.toLowerCase().includes('soccer') || 
+            topic.toLowerCase().includes('sport')) {
+            searchQuery = topic + ' sport';
+        }
+
+        console.log('Search query:', searchQuery);
+
+        const response = await newsapi.v2.everything({
+            q: searchQuery,
+            language: 'en',
+            sortBy: 'publishedAt',
+            pageSize: 10,
+            from: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+        });
+
+        if (!response.articles || response.articles.length === 0) {
+            console.log('No articles found in API response');
+            return [];
+        }
+
+        // Filter and index articles
+        const relevantArticles = response.articles
+            .filter(article => {
+                const title = article.title?.toLowerCase() || '';
+                const description = article.description?.toLowerCase() || '';
+                const searchTerms = topic.toLowerCase().split(' ');
+                return searchTerms.some(term => 
+                    title.includes(term) || description.includes(term)
+                );
+            })
+            .map((article, index) => ({
+                ...article,
+                index: index + 1 // Add 1-based index
+            }));
+
+        console.log('Relevant articles found:', relevantArticles.length);
+        return relevantArticles.length > 0 ? relevantArticles : response.articles.map((article, index) => ({
+            ...article,
+            index: index + 1
+        }));
+    } catch (error) {
+        console.error('Error fetching news:', error);
+        return [];
+    }
+}
+
+// AI summarization with sources and formatted headings
+async function summarizeNews(articles) {
+    try {
+        if (!articles || articles.length === 0) {
+            return "No articles available for this topic.";
+        }
+
+        const articlesText = articles.map((article, index) => {
+            return `[${index + 1}] ${article.title}\n${article.description || ''}\nSource: ${article.source.name}\nURL: ${article.url}\n\n`;
+        }).join('\n');
+
+        const prompt = `Please summarize the following news articles. Include key points and maintain the article reference numbers [1], [2], etc. in your summary:\n\n${articlesText}`;
+
+        const completion = await openai.chat.completions.create({
+            model: "gpt-3.5-turbo",
+            messages: [
+                {
+                    role: "system",
+                    content: "You are a news summarizer. Summarize the articles while maintaining the reference numbers [1], [2], etc. in your text."
+                },
+                {
+                    role: "user",
+                    content: prompt
+                }
+            ],
+            temperature: 0.7,
+            max_tokens: 500
+        });
+
+        return completion.choices[0].message.content;
+    } catch (error) {
+        console.error('Error in summarizeNews:', error);
+        return "Error generating summary.";
+    }
+}
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+    console.log('New client connected');
+
+    socket.on('requestNews', async (topic) => {
+        const articles = await fetchNews(topic);
+        const summary = await summarizeNews(articles);
+        
+        // Format the summary with HTML links
+        const formattedSummary = summary.split('\n\n').map(block => {
+            if (block.startsWith('##')) {
+                const [title, ...content] = block.split('\n');
+                const formattedContent = content.join('\n').replace(/\[(\d+)\]/g, (match, num) => {
+                    const articleIndex = parseInt(num) - 1;
+                    const article = articles[articleIndex];
+                    return article ? `<a href="${article.url}" target="_blank" class="news-link">[${num}]</a>` : match;
+                });
+                return `<h3>${title.replace('##', '').trim()}</h3>${formattedContent}`;
+            }
+            return block;
+        }).join('\n\n');
+
+        socket.emit('newsUpdate', { 
+            topic, 
+            summary: formattedSummary, 
+            articles 
+        });
+    });
+
+    socket.on('disconnect', () => {
+        console.log('Client disconnected');
+    });
+});
+
+// Enhanced test email endpoint
+app.get('/api/test-email', async (req, res) => {
+    try {
+        const recipientEmail = req.query.email || process.env.SMTP_USER;
+        
+        if (!recipientEmail) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide an email address as a query parameter: /api/test-email?email=your@email.com'
+            });
+        }
+
+        const testEmailContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background: #4a5568; color: white; padding: 20px; text-align: center; }
+                    .content { padding: 20px; }
+                    .success { color: #48bb78; font-weight: bold; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>SMTP Configuration Test</h1>
+                    </div>
+                    <div class="content">
+                        <p class="success">✓ SMTP Configuration Successful!</p>
+                        <p>Your email configuration is working correctly. You will now be able to receive daily news summaries.</p>
+                        <p>Configuration Details:</p>
+                        <ul>
+                            <li>SMTP Host: ${process.env.SMTP_HOST}</li>
+                            <li>SMTP Port: ${process.env.SMTP_PORT}</li>
+                            <li>Sender: ${DEFAULT_SENDER.name} <${DEFAULT_SENDER.address}></li>
+                        </ul>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `;
+
+        await transporter.sendMail({
+            from: `"${DEFAULT_SENDER.name}" <${DEFAULT_SENDER.address}>`,
+            to: recipientEmail,
+            subject: 'SendGrid SMTP Test - NewsNexus Daily',
+            html: testEmailContent
+        });
+
+        res.json({ 
+            success: true, 
+            message: 'Test email sent successfully!',
+            details: {
+                host: process.env.SMTP_HOST,
+                port: process.env.SMTP_PORT,
+                user: process.env.SMTP_USER,
+                sender: DEFAULT_SENDER,
+                recipient: recipientEmail
+            }
+        });
+    } catch (error) {
+        console.error('Error sending test email:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to send test email',
+            error: error.message,
+            details: {
+                host: process.env.SMTP_HOST,
+                port: process.env.SMTP_PORT,
+                user: process.env.SMTP_USER,
+                sender: DEFAULT_SENDER
+            }
+        });
+    }
+});
+
+// Update the daily news delivery cron job
+cron.schedule('0 8 * * *', async () => {
+    try {
+        const subscribers = await Subscriber.find({ isActive: true });
+        
+        for (const subscriber of subscribers) {
+            const articlesByTopic = await Promise.all(
+                subscriber.topics.map(async (topic) => {
+                    const articles = await fetchNews(topic);
+                    return articles.map(article => ({
+                        ...article,
+                        unsubscribeToken: subscriber.unsubscribeToken
+                    }));
+                })
+            );
+
+            const summaries = await Promise.all(
+                subscriber.topics.map(async (topic, index) => {
+                    const articles = articlesByTopic[index];
+                    return await summarizeNews(articles);
+                })
+            );
+
+            const emailContent = createEmailTemplate(subscriber.topics, summaries, articlesByTopic);
+
+            await transporter.sendMail({
+                from: `"${DEFAULT_SENDER.name}" <${DEFAULT_SENDER.address}>`,
+                to: subscriber.email,
+                subject: 'Your Daily NewsNexus Summary',
+                html: emailContent
+            });
+
+            subscriber.lastSent = new Date();
+            await subscriber.save();
+            
+            console.log(`Daily summary sent to ${subscriber.email}`);
+        }
+    } catch (error) {
+        console.error('Error in daily news delivery:', error);
+    }
+});
+
+// Recent news endpoint
+app.get('/api/recent-news', async (req, res) => {
+    try {
+        const recentNews = await fetchRecentNews();
+        res.json(recentNews);
+    } catch (error) {
+        console.error('Error fetching recent news:', error);
+        res.status(500).json({ error: 'Failed to fetch recent news' });
+    }
+});
+
+// Function to fetch recent news
+async function fetchRecentNews() {
+    try {
+        const response = await newsapi.v2.topHeadlines({
+            language: 'en',
+            pageSize: 6
+        });
+
+        if (!response.articles || response.articles.length === 0) {
+            return [];
+        }
+
+        // Process and format the news articles
+        const formattedNews = await Promise.all(response.articles.map(async (article) => {
+            // Determine category based on source or content
+            let category = 'General';
+            if (article.source.name.toLowerCase().includes('tech')) {
+                category = 'Technology';
+            } else if (article.source.name.toLowerCase().includes('sport')) {
+                category = 'Sports';
+            } else if (article.source.name.toLowerCase().includes('business')) {
+                category = 'Business';
+            }
+
+            // Format the time
+            const publishedDate = new Date(article.publishedAt);
+            const time = publishedDate.toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: 'numeric',
+                hour12: true
+            });
+
+            return {
+                category,
+                headline: article.title,
+                summary: article.description || 'No description available',
+                source: article.source.name,
+                time,
+                url: article.url
+            };
+        }));
+
+        return formattedNews;
+    } catch (error) {
+        console.error('Error in fetchRecentNews:', error);
+        return [];
+    }
+}
+
+// Update the test email endpoint
+app.get('/api/send-test-emails', async (req, res) => {
+    try {
+        const subscribers = await Subscriber.find({});
+        let results = {
+            total: subscribers.length,
+            successful: 0,
+            failed: 0,
+            details: []
+        };
+
+        for (const subscriber of subscribers) {
+            try {
+                const articlesByTopic = await Promise.all(
+                    subscriber.topics.map(async (topic) => {
+                        const articles = await fetchNews(topic);
+                        return articles;
+                    })
+                );
+
+                const summaries = await Promise.all(
+                    subscriber.topics.map(async (topic, index) => {
+                        const articles = articlesByTopic[index];
+                        return await summarizeNews(articles);
+                    })
+                );
+
+                const emailContent = createEmailTemplate(subscriber.topics, summaries, articlesByTopic);
+
+                await transporter.sendMail({
+                    from: `"${DEFAULT_SENDER.name}" <${DEFAULT_SENDER.address}>`,
+                    to: subscriber.email,
+                    subject: 'Test Email - Your NewsNexus Daily Summary',
+                    html: emailContent
+                });
+
+                results.successful++;
+                results.details.push({
+                    email: subscriber.email,
+                    status: 'success',
+                    topics: subscriber.topics
+                });
+
+                console.log(`Test email sent to ${subscriber.email}`);
+            } catch (error) {
+                results.failed++;
+                results.details.push({
+                    email: subscriber.email,
+                    status: 'failed',
+                    error: error.message
+                });
+                console.error(`Failed to send test email to ${subscriber.email}:`, error);
+            }
+        }
+
+        res.json({
+            success: true,
+            message: `Test emails sent. Successful: ${results.successful}, Failed: ${results.failed}`,
+            results
+        });
+    } catch (error) {
+        console.error('Error sending test emails:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to send test emails',
+            error: error.message
+        });
+    }
+});
+
+// Unsubscribe by token endpoint - MUST be before /api/unsubscribe-by-email
+app.get('/api/unsubscribe/:token', async (req, res) => {
+    try {
+        const { token } = req.params;
+        console.log('Attempting to unsubscribe with token:', token); // Debug log
+        
+        // Find subscriber by token
+        const subscriber = await Subscriber.findOne({ unsubscribeToken: token });
+        console.log('Found subscriber:', subscriber ? 'Yes' : 'No'); // Debug log
+        
+        if (!subscriber) {
+            console.log('No subscriber found for token'); // Debug log
+            return res.status(404).send(`
+                <html>
+                    <head>
+                        <title>Unsubscribe Failed</title>
+                        <style>
+                            body {
+                                font-family: Arial, sans-serif;
+                                display: flex;
+                                justify-content: center;
+                                align-items: center;
+                                height: 100vh;
+                                margin: 0;
+                                background: #f7fafc;
+                            }
+                            .container {
+                                text-align: center;
+                                padding: 2rem;
+                                background: white;
+                                border-radius: 8px;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                            }
+                            h1 { color: #e53e3e; }
+                            p { color: #4a5568; }
+                            a {
+                                color: #5a67d8;
+                                text-decoration: none;
+                            }
+                            a:hover { text-decoration: underline; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="container">
+                            <h1>Unsubscribe Failed</h1>
+                            <p>Invalid or expired unsubscribe link.</p>
+                            <p><a href="/subscriber.html">Return to subscription page</a></p>
+                        </div>
+                    </body>
+                </html>
+            `);
+        }
+
+        // Update subscriber status
+        subscriber.isActive = false;
+        await subscriber.save();
+        console.log('Successfully unsubscribed subscriber:', subscriber.email); // Debug log
+
+        // Send success response
+        res.send(`
+            <html>
+                <head>
+                    <title>Unsubscribed Successfully</title>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            height: 100vh;
+                            margin: 0;
+                            background: #f7fafc;
+                        }
+                        .container {
+                            text-align: center;
+                            padding: 2rem;
+                            background: white;
+                            border-radius: 8px;
+                            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                        }
+                        h1 { color: #38a169; }
+                        p { color: #4a5568; }
+                        a {
+                            color: #5a67d8;
+                            text-decoration: none;
+                        }
+                        a:hover { text-decoration: underline; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <h1>Unsubscribed Successfully</h1>
+                        <p>You have been unsubscribed from NewsNexus Daily updates.</p>
+                        <p>You will no longer receive news updates at ${subscriber.email}.</p>
+                        <p><a href="/subscriber.html">Return to subscription page</a></p>
+                    </div>
+                </body>
+            </html>
+        `);
+    } catch (error) {
+        console.error('Unsubscribe error:', error);
+        res.status(500).send(`
+            <html>
+                <head>
+                    <title>Error</title>
+                    <style>
+                        body {
+                            font-family: Arial, sans-serif;
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            height: 100vh;
+                            margin: 0;
+                            background: #f7fafc;
+                        }
+                        .container {
+                            text-align: center;
+                            padding: 2rem;
+                            background: white;
+                            border-radius: 8px;
+                            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                        }
+                        h1 { color: #e53e3e; }
+                        p { color: #4a5568; }
+                        a {
+                            color: #5a67d8;
+                            text-decoration: none;
+                        }
+                        a:hover { text-decoration: underline; }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <h1>Error</h1>
+                        <p>An error occurred while processing your request.</p>
+                        <p><a href="/subscriber.html">Return to subscription page</a></p>
+                    </div>
+                </body>
+            </html>
+        `);
+    }
+});
+
+// Unsubscribe by email endpoint - MUST be after /api/unsubscribe/:token
+app.post('/api/unsubscribe-by-email', async (req, res) => {
+    try {
+        const { email } = req.body;
+        console.log('Attempting to unsubscribe email:', email); // Debug log
+        
+        if (!email) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email is required'
+            });
+        }
+
+        // Find subscriber by email
+        const subscriber = await Subscriber.findOne({ email: email.toLowerCase() });
+        console.log('Found subscriber:', subscriber ? 'Yes' : 'No'); // Debug log
+        
+        if (!subscriber) {
+            console.log('No subscriber found for email'); // Debug log
+            return res.status(404).json({
+                success: false,
+                message: 'No subscription found for this email address'
+            });
+        }
+
+        // Delete the subscriber record
+        await Subscriber.deleteOne({ email: email.toLowerCase() });
+        console.log('Successfully deleted subscriber:', email); // Debug log
+
+        res.json({
+            success: true,
+            message: 'Successfully unsubscribed'
+        });
+    } catch (error) {
+        console.error('Unsubscribe by email error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'An error occurred while processing your request'
+        });
+    }
+});
+
+// Database connection and server start
+server.listen(4000, '0.0.0.0', () => {
+    console.log('Server running on http://localhost:4000');
+    console.log('Server is ready to accept connections');
+}); 

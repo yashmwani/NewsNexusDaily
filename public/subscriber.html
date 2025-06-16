@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NewsNexus Daily - Manage Subscription</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #1a1c2c 0%, #2d3748 100%);
+            min-height: 100vh;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #2d3748;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #718096;
+        }
+
+        .subscription-form {
+            background: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #4a5568;
+            font-weight: 500;
+        }
+
+        input[type="email"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="email"]:focus {
+            border-color: #5a67d8;
+            outline: none;
+        }
+
+        .topics-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .topic-checkbox {
+            display: none;
+        }
+
+        .topic-label {
+            display: block;
+            padding: 10px 15px;
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .topic-checkbox:checked + .topic-label {
+            background: #5a67d8;
+            color: white;
+            border-color: #5a67d8;
+        }
+
+        .timezone-select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            background: #fff;
+            cursor: pointer;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #5a67d8;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            text-align: center;
+        }
+
+        .button:hover {
+            background: #4c51bf;
+            transform: translateY(-2px);
+        }
+
+        .button:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status-message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            display: none;
+        }
+
+        .status-message.success {
+            background: #c6f6d5;
+            color: #2f855a;
+            display: block;
+        }
+
+        .status-message.error {
+            background: #fed7d7;
+            color: #c53030;
+            display: block;
+        }
+
+        .current-subscription {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .current-subscription h2 {
+            color: #2d3748;
+            margin-bottom: 15px;
+        }
+
+        .current-topics {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .topic-tag {
+            background: #5a67d8;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            .topics-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .custom-topics {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .custom-topic-label {
+            display: block;
+            margin-bottom: 10px;
+            color: #4a5568;
+            font-weight: 500;
+        }
+
+        .custom-topic-input {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .custom-topic-input input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .custom-topic-input input:focus {
+            border-color: #5a67d8;
+            outline: none;
+        }
+
+        .add-topic-button {
+            padding: 12px 20px;
+            background: #5a67d8;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .add-topic-button:hover {
+            background: #4c51bf;
+            transform: translateY(-2px);
+        }
+
+        .custom-topics-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .custom-topic-tag {
+            background: #5a67d8;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .remove-topic {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 0;
+            font-size: 16px;
+            line-height: 1;
+            opacity: 0.8;
+            transition: opacity 0.3s ease;
+        }
+
+        .remove-topic:hover {
+            opacity: 1;
+        }
+
+        .unsubscribe-btn {
+            background: #e53e3e;
+            margin-top: 10px;
+        }
+
+        .unsubscribe-btn:hover {
+            background: #c53030;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Manage Your Subscription</h1>
+            <p>Update your preferences or unsubscribe from NewsNexus Daily</p>
+        </div>
+
+        <div class="subscription-form">
+            <form id="subscriptionForm">
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" required placeholder="Enter your email address">
+                </div>
+
+                <div class="form-group">
+                    <label>Select Topics</label>
+                    <div class="topics-container">
+                        <input type="checkbox" id="tech" name="topics" value="technology" class="topic-checkbox">
+                        <label for="tech" class="topic-label">Technology</label>
+
+                        <input type="checkbox" id="sports" name="topics" value="sports" class="topic-checkbox">
+                        <label for="sports" class="topic-label">Sports</label>
+
+                        <input type="checkbox" id="business" name="topics" value="business" class="topic-checkbox">
+                        <label for="business" class="topic-label">Business</label>
+
+                        <input type="checkbox" id="science" name="topics" value="science" class="topic-checkbox">
+                        <label for="science" class="topic-label">Science</label>
+
+                        <input type="checkbox" id="health" name="topics" value="health" class="topic-checkbox">
+                        <label for="health" class="topic-label">Health</label>
+
+                        <input type="checkbox" id="entertainment" name="topics" value="entertainment" class="topic-checkbox">
+                        <label for="entertainment" class="topic-label">Entertainment</label>
+                    </div>
+
+                    <div class="custom-topics">
+                        <label for="customTopic" class="custom-topic-label">Add Custom Topic</label>
+                        <div class="custom-topic-input">
+                            <input type="text" id="customTopic" placeholder="Enter your custom topic">
+                            <button type="button" id="addCustomTopic" class="add-topic-button">Add</button>
+                        </div>
+                        <div id="customTopicsList" class="custom-topics-list"></div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="timezone">Timezone</label>
+                    <select id="timezone" name="timezone" class="timezone-select">
+                        <option value="UTC">UTC</option>
+                        <option value="America/New_York">Eastern Time</option>
+                        <option value="America/Chicago">Central Time</option>
+                        <option value="America/Denver">Mountain Time</option>
+                        <option value="America/Los_Angeles">Pacific Time</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="button">Update Subscription</button>
+                <button type="button" id="unsubscribeBtn" class="button unsubscribe-btn">Unsubscribe</button>
+            </form>
+
+            <div id="statusMessage" class="status-message"></div>
+        </div>
+
+        <div id="currentSubscription" class="current-subscription">
+            <h2>Current Subscription</h2>
+            <p>Email: <span id="currentEmail"></span></p>
+            <p>Timezone: <span id="currentTimezone"></span></p>
+            <div class="current-topics" id="currentTopics"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('subscriptionForm');
+            const statusMessage = document.getElementById('statusMessage');
+            const currentSubscription = document.getElementById('currentSubscription');
+            const currentEmail = document.getElementById('currentEmail');
+            const currentTimezone = document.getElementById('currentTimezone');
+            const currentTopics = document.getElementById('currentTopics');
+
+            // Get email from URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const email = urlParams.get('email');
+            if (email) {
+                document.getElementById('email').value = email;
+                fetchCurrentSubscription(email);
+            }
+
+            const customTopicInput = document.getElementById('customTopic');
+            const addCustomTopicButton = document.getElementById('addCustomTopic');
+            const customTopicsList = document.getElementById('customTopicsList');
+            const customTopics = new Set();
+
+            addCustomTopicButton.addEventListener('click', addCustomTopic);
+            customTopicInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addCustomTopic();
+                }
+            });
+
+            function addCustomTopic() {
+                const topic = customTopicInput.value.trim();
+                if (topic && !customTopics.has(topic)) {
+                    customTopics.add(topic);
+                    updateCustomTopicsList();
+                    customTopicInput.value = '';
+                }
+            }
+
+            function removeCustomTopic(topic) {
+                customTopics.delete(topic);
+                updateCustomTopicsList();
+            }
+
+            function updateCustomTopicsList() {
+                customTopicsList.innerHTML = Array.from(customTopics).map(topic => `
+                    <div class="custom-topic-tag">
+                        ${topic}
+                        <button type="button" class="remove-topic" onclick="removeCustomTopic('${topic}')">&times;</button>
+                    </div>
+                `).join('');
+            }
+
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const formData = {
+                    email: document.getElementById('email').value,
+                    topics: [
+                        ...Array.from(document.querySelectorAll('input[name="topics"]:checked')).map(cb => cb.value),
+                        ...Array.from(customTopics)
+                    ],
+                    timezone: document.getElementById('timezone').value
+                };
+
+                try {
+                    const response = await fetch('/api/subscribe', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(formData)
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        showStatus('Subscription updated successfully!', 'success');
+                        fetchCurrentSubscription(formData.email);
+                    } else {
+                        showStatus(data.message || 'Failed to update subscription', 'error');
+                    }
+                } catch (error) {
+                    showStatus('An error occurred. Please try again.', 'error');
+                }
+            });
+
+            async function fetchCurrentSubscription(email) {
+                try {
+                    const response = await fetch(`/api/subscriber/${email}`);
+                    const data = await response.json();
+
+                    if (data.success) {
+                        currentEmail.textContent = email;
+                        currentTimezone.textContent = data.timezone;
+                        
+                        // Clear existing custom topics
+                        customTopics.clear();
+                        
+                        // Process topics
+                        data.topics.forEach(topic => {
+                            const checkbox = document.querySelector(`input[value="${topic}"]`);
+                            if (checkbox) {
+                                checkbox.checked = true;
+                            } else {
+                                customTopics.add(topic);
+                            }
+                        });
+
+                        updateCustomTopicsList();
+                        
+                        // Update current topics display
+                        currentTopics.innerHTML = data.topics.map(topic => 
+                            `<span class="topic-tag">${topic}</span>`
+                        ).join('');
+
+                        // Set the timezone
+                        document.getElementById('timezone').value = data.timezone;
+
+                        currentSubscription.style.display = 'block';
+                    }
+                } catch (error) {
+                    console.error('Error fetching subscription:', error);
+                }
+            }
+
+            function showStatus(message, type) {
+                statusMessage.textContent = message;
+                statusMessage.className = `status-message ${type}`;
+                setTimeout(() => {
+                    statusMessage.style.display = 'none';
+                }, 5000);
+            }
+
+            // Make removeCustomTopic available globally
+            window.removeCustomTopic = removeCustomTopic;
+
+            // Add unsubscribe button handler
+            document.getElementById('unsubscribeBtn').addEventListener('click', async function() {
+                const email = document.getElementById('email').value;
+                if (!email) {
+                    showStatus('Please enter your email address first', 'error');
+                    return;
+                }
+
+                if (!confirm('Are you sure you want to unsubscribe from NewsNexus Daily?')) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/unsubscribe-by-email', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ email })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        showStatus('Successfully unsubscribed from NewsNexus Daily', 'success');
+                        // Clear the form and hide current subscription
+                        form.reset();
+                        currentSubscription.style.display = 'none';
+                    } else {
+                        showStatus(data.message || 'Failed to unsubscribe', 'error');
+                    }
+                } catch (error) {
+                    showStatus('An error occurred while unsubscribing', 'error');
+                }
+            });
+        });
+    </script>
+</body>
+</html> 

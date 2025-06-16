@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unsubscribe - NewsNexus Daily</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #2d3748;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #4a5568;
+            text-align: left;
+        }
+
+        input[type="email"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="email"]:focus {
+            outline: none;
+            border-color: #5a67d8;
+        }
+
+        button {
+            background: #5a67d8;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background: #4c51bf;
+        }
+
+        .status {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 5px;
+            display: none;
+        }
+
+        .status.success {
+            background: #c6f6d5;
+            color: #2f855a;
+            display: block;
+        }
+
+        .status.error {
+            background: #fed7d7;
+            color: #c53030;
+            display: block;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 1rem;
+            color: #5a67d8;
+            text-decoration: none;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .loading {
+            display: none;
+            margin-top: 1rem;
+        }
+
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid #5a67d8;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Unsubscribe from NewsNexus Daily</h1>
+        <form id="unsubscribeForm">
+            <div class="form-group">
+                <label for="email">Enter your email address:</label>
+                <input type="email" id="email" name="email" required placeholder="your@email.com">
+            </div>
+            <button type="submit">Unsubscribe</button>
+        </form>
+        <div id="status" class="status"></div>
+        <div id="loading" class="loading"></div>
+        <a href="/subscriber.html" class="back-link">Back to Subscription Page</a>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('unsubscribeForm');
+            const status = document.getElementById('status');
+            const loading = document.getElementById('loading');
+
+            // Check if email is provided in URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const emailParam = urlParams.get('email');
+            if (emailParam) {
+                document.getElementById('email').value = emailParam;
+            }
+
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const email = document.getElementById('email').value;
+                
+                // Show loading
+                loading.style.display = 'block';
+                status.style.display = 'none';
+                
+                try {
+                    const response = await fetch(`/api/unsubscribe-by-email`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ email })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        status.className = 'status success';
+                        status.textContent = 'You have been successfully unsubscribed from NewsNexus Daily updates.';
+                        form.reset();
+                    } else {
+                        status.className = 'status error';
+                        status.textContent = data.message || 'Failed to unsubscribe. Please try again.';
+                    }
+                } catch (error) {
+                    status.className = 'status error';
+                    status.textContent = 'An error occurred. Please try again later.';
+                } finally {
+                    loading.style.display = 'none';
+                    status.style.display = 'block';
+                }
+            });
+        });
+    </script>
+</body>
+</html> 

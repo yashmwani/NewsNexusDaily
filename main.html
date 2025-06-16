@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NewsNexus Daily - Personalized News Summaries</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #1a1c2c 0%, #2d3748 100%);
+            min-height: 100vh;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            background: linear-gradient(45deg, #fff, #e2e8f0);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+            color: #e2e8f0;
+        }
+
+        .subscribe-link {
+            background: linear-gradient(45deg, #48bb78, #38a169);
+            color: white;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);
+        }
+
+        .subscribe-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(72, 187, 120, 0.4);
+        }
+
+        /* Tab Styles */
+        .tabs {
+            display: flex;
+            gap: 15px;
+            margin: 30px 0;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .tab {
+            padding: 15px 30px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #e2e8f0;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .tab::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, #5a67d8, #4c51bf);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: -1;
+        }
+
+        .tab.active {
+            color: white;
+            box-shadow: 0 4px 15px rgba(90, 103, 216, 0.3);
+        }
+
+        .tab.active::before {
+            opacity: 1;
+        }
+
+        .tab:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .main-content {
+            margin-top: 20px;
+        }
+
+        .newspaper-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            transform: translateY(0);
+            transition: transform 0.3s ease;
+        }
+
+        .chat-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .chat-container {
+            height: 600px;
+            border: 2px solid #e2e8f0;
+            border-radius: 15px;
+            overflow-y: auto;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: rgba(248, 250, 252, 0.8);
+            scrollbar-width: thin;
+            scrollbar-color: #5a67d8 #e2e8f0;
+        }
+
+        @media (max-width: 768px) {
+            .tabs {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .tab {
+                width: 100%;
+            }
+
+            .chat-container {
+                height: 500px;
+            }
+        }
+
+        .newspaper-header {
+            text-align: center;
+            border-bottom: 3px solid #2d3748;
+            padding-bottom: 30px;
+            margin-bottom: 40px;
+        }
+
+        .newspaper-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 4em;
+            font-weight: 700;
+            color: #2d3748;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .newspaper-date {
+            font-style: italic;
+            color: #4a5568;
+            font-size: 1.2em;
+            font-weight: 500;
+        }
+
+        .news-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 40px;
+            margin-bottom: 30px;
+        }
+
+        .news-column {
+            border-right: 2px solid #e2e8f0;
+            padding-right: 30px;
+        }
+
+        .news-column:last-child {
+            border-right: none;
+        }
+
+        .news-item {
+            margin-bottom: 30px;
+            padding-bottom: 25px;
+            border-bottom: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+
+        .news-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        .news-category {
+            font-size: 0.9em;
+            text-transform: uppercase;
+            color: #5a67d8;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .news-headline {
+            font-size: 1.5em;
+            font-weight: 700;
+            margin-bottom: 12px;
+            line-height: 1.3;
+        }
+
+        .news-headline a {
+            color: #2d3748;
+            text-decoration: none;
+            transition: color 0.3s ease;
+            position: relative;
+        }
+
+        .news-headline a::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: #5a67d8;
+            transition: width 0.3s ease;
+        }
+
+        .news-headline a:hover {
+            color: #5a67d8;
+        }
+
+        .news-headline a:hover::after {
+            width: 100%;
+        }
+
+        .news-summary {
+            font-size: 1.1em;
+            line-height: 1.7;
+            color: #4a5568;
+            margin-bottom: 15px;
+        }
+
+        .news-meta {
+            font-size: 0.9em;
+            color: #718096;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .news-meta a {
+            color: #5a67d8;
+            text-decoration: none;
+            transition: color 0.3s ease;
+            font-weight: 500;
+        }
+
+        .news-meta a:hover {
+            color: #4c51bf;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            padding: 15px 20px;
+            border-radius: 15px;
+            max-width: 80%;
+            word-wrap: break-word;
+            animation: messageAppear 0.3s ease;
+        }
+
+        @keyframes messageAppear {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .user-message {
+            background: linear-gradient(45deg, #5a67d8, #4c51bf);
+            color: white;
+            margin-left: auto;
+            text-align: right;
+            box-shadow: 0 4px 15px rgba(90, 103, 216, 0.2);
+        }
+
+        .ai-message {
+            background: white;
+            color: #2d3748;
+            position: relative;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+        }
+
+        .ai-message h3 {
+            color: #2d3748;
+            margin: 10px 0;
+            text-decoration: underline;
+            font-size: 1.2em;
+            padding-bottom: 5px;
+        }
+
+        .news-link {
+            color: #5a67d8;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-block;
+            margin: 0 2px;
+            padding: 2px 5px;
+            border-radius: 4px;
+            background: rgba(90, 103, 216, 0.1);
+        }
+
+        .news-link:hover {
+            color: #4c51bf;
+            transform: translateY(-1px);
+            background: rgba(90, 103, 216, 0.2);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 15px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: #5a67d8;
+            box-shadow: 0 0 0 3px rgba(90, 103, 216, 0.2);
+        }
+
+        .send-btn {
+            background: linear-gradient(45deg, #5a67d8, #4c51bf);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(90, 103, 216, 0.3);
+        }
+
+        .send-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(90, 103, 216, 0.4);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            color: #5a67d8;
+            font-style: italic;
+            margin-top: 15px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>🌐 NewsNexus Daily</h1>
+                <p>Get personalized news summaries powered by AI</p>
+            </div>
+            <a href="/subscribe.html" class="subscribe-link">📬 Subscribe to Daily News</a>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('newspaper')">
+                <span>📰</span> Daily Chronicle
+            </button>
+            <button class="tab" onclick="switchTab('chat')">
+                <span>🤖</span> Chat with AI
+            </button>
+        </div>
+
+        <div class="main-content">
+            <!-- Newspaper Section -->
+            <div id="newspaper" class="tab-content active">
+                <div class="newspaper-section">
+                    <div class="newspaper-header">
+                        <h1 class="newspaper-title">The Daily Chronicle</h1>
+                        <div class="newspaper-date" id="currentDate"></div>
+                    </div>
+                    <div class="news-grid" id="newsGrid">
+                        <!-- News items will be dynamically added here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Section -->
+            <div id="chat" class="tab-content">
+                <div class="chat-section">
+                    <h2>🤖 Ask About Latest News</h2>
+                    <div class="chat-container" id="chatContainer">
+                        <div class="message ai-message">
+                            <strong>AI Assistant:</strong> Hello! I can help you get the latest news summaries on any topic. Just ask me about what you'd like to know about - politics, technology, sports, business, or any specific topic you're interested in!
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <input type="text" class="chat-input" id="chatInput" placeholder="Ask about latest news... (e.g., 'Latest tech news' or 'What's happening in politics?')">
+                        <button class="send-btn" onclick="sendMessage()">Send</button>
+                    </div>
+                    <div class="loading" id="loading">Getting latest news...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        
+        // Tab switching functionality
+        function switchTab(tabId) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabId).classList.add('active');
+            
+            // Add active class to clicked tab
+            event.target.closest('.tab').classList.add('active');
+        }
+        
+        // Set current date
+        document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        // Fetch and display recent news
+        async function fetchRecentNews() {
+            try {
+                const response = await fetch('/api/recent-news');
+                const news = await response.json();
+                displayNews(news);
+            } catch (error) {
+                console.error('Error fetching recent news:', error);
+            }
+        }
+
+        function displayNews(news) {
+            const newsGrid = document.getElementById('newsGrid');
+            newsGrid.innerHTML = '';
+
+            news.forEach(item => {
+                const newsItem = document.createElement('div');
+                newsItem.className = 'news-column';
+                newsItem.innerHTML = `
+                    <div class="news-item">
+                        <div class="news-category">${item.category}</div>
+                        <h3 class="news-headline">
+                            <a href="${item.url}" target="_blank" rel="noopener noreferrer">${item.headline}</a>
+                        </h3>
+                        <p class="news-summary">${item.summary}</p>
+                        <div class="news-meta">
+                            <a href="${item.url}" target="_blank" rel="noopener noreferrer">${item.source}</a> • ${item.time}
+                        </div>
+                    </div>
+                `;
+                newsGrid.appendChild(newsItem);
+            });
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+
+            // Add user message
+            addMessage(message, 'user');
+            input.value = '';
+
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+
+            // Request real-time news
+            socket.emit('requestNews', message);
+        }
+
+        function addMessage(message, type) {
+            const container = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message`;
+            
+            if (type === 'user') {
+                messageDiv.innerHTML = `<strong>You:</strong> ${message}`;
+            } else {
+                // Remove any visible URLs from the message but preserve HTML links
+                const cleanMessage = message.replace(/(https?:\/\/[^\s]+)(?![^<]*>)/g, '');
+                messageDiv.innerHTML = `<strong>AI Assistant:</strong> ${cleanMessage}`;
+                
+                // Ensure all links open in new tabs
+                messageDiv.querySelectorAll('a').forEach(link => {
+                    link.setAttribute('target', '_blank');
+                    link.setAttribute('rel', 'noopener noreferrer');
+                });
+            }
+            
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Handle Enter key in chat
+        document.getElementById('chatInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Listen for news updates
+        socket.on('newsUpdate', (data) => {
+            document.getElementById('loading').style.display = 'none';
+            addMessage(data.summary, 'ai');
+        });
+
+        // Fetch recent news on page load
+        fetchRecentNews();
+    </script>
+</body>
+</html>

@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscribe - NewsNexus Daily</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #1a1c2c 0%, #2d3748 100%);
+            min-height: 100vh;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            background: linear-gradient(45deg, #fff, #e2e8f0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+            color: #e2e8f0;
+        }
+
+        .back-link {
+            color: #e2e8f0;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            font-weight: 600;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .back-link:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateX(-5px);
+        }
+
+        .subscription-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            transform: translateY(0);
+            transition: transform 0.3s ease;
+        }
+
+        .subscription-section:hover {
+            transform: translateY(-5px);
+        }
+
+        .subscription-section h2 {
+            color: #2d3748;
+            margin-bottom: 30px;
+            font-size: 1.8em;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 1.1em;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.9);
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #5a67d8;
+            box-shadow: 0 0 0 3px rgba(90, 103, 216, 0.2);
+        }
+
+        .form-group textarea {
+            height: 120px;
+            resize: vertical;
+        }
+
+        .form-group small {
+            display: block;
+            margin-top: 8px;
+            color: #718096;
+            font-size: 0.9em;
+        }
+
+        .subscribe-form-btn {
+            background: linear-gradient(45deg, #48bb78, #38a169);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: 600;
+            width: 100%;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .subscribe-form-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(72, 187, 120, 0.4);
+        }
+
+        .success-message {
+            background: rgba(198, 246, 213, 0.9);
+            color: #22543d;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            display: none;
+            text-align: center;
+            font-weight: 500;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .subscription-section {
+                padding: 25px;
+            }
+
+            .form-group input,
+            .form-group textarea,
+            .form-group select {
+                padding: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">
+            <span>←</span> Back to News
+        </a>
+        
+        <div class="header">
+            <h1>📬 Subscribe to NewsNexus Daily</h1>
+            <p>Get personalized news summaries delivered to your inbox</p>
+        </div>
+
+        <div class="subscription-section">
+            <h2>📋 Subscription Details</h2>
+            <form id="subscriptionForm">
+                <div class="form-group">
+                    <label for="email">📧 Email Address</label>
+                    <input type="email" id="email" name="email" required placeholder="your@email.com">
+                </div>
+                <div class="form-group">
+                    <label for="topics">📰 News Topics</label>
+                    <textarea id="topics" name="topics" placeholder="e.g., technology, artificial intelligence, startups, crypto, science" required></textarea>
+                    <small>Enter topics you want to receive daily summaries about (comma-separated)</small>
+                </div>
+                <div class="form-group">
+                    <label for="timezone">🕒 Preferred Timezone</label>
+                    <select id="timezone" name="timezone">
+                        <option value="America/New_York">Eastern Time (ET)</option>
+                        <option value="America/Chicago">Central Time (CT)</option>
+                        <option value="America/Denver">Mountain Time (MT)</option>
+                        <option value="America/Los_Angeles">Pacific Time (PT)</option>
+                        <option value="UTC">UTC</option>
+                    </select>
+                </div>
+                <button type="submit" class="subscribe-form-btn">📬 Subscribe to Daily News</button>
+            </form>
+            <div class="success-message" id="successMessage">
+                ✨ Successfully subscribed! You'll receive your first news summary tomorrow at 8:00 AM.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Handle subscription form
+        document.getElementById('subscriptionForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const topics = document.getElementById('topics').value.split(',').map(t => t.trim());
+            const timezone = document.getElementById('timezone').value;
+            
+            try {
+                const response = await fetch('/api/subscribe', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, topics, timezone })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('successMessage').style.display = 'block';
+                    this.reset();
+                } else {
+                    alert('Subscription failed: ' + data.message);
+                }
+            } catch (error) {
+                alert('Error subscribing: ' + error.message);
+            }
+        });
+    </script>
+</body>
+</html> 

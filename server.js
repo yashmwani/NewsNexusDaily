@@ -544,8 +544,8 @@ app.get('/test-email', async (req, res) => {
     // Test SMTP connection
     console.log('Testing SMTP connection...');
     const testMsg = {
-      to: 'yashmwani@gmail.com',
-      from: 'yashmwani@gmail.com',
+      to: 'newsnexusdaily@gmail.com',
+      from: 'newsnexusdaily@gmail.com',
       subject: 'Test Email from NewsNexus Daily',
       text: 'This is a test email to verify SMTP configuration.',
       html: '<h1>Test Email</h1><p>This is a test email to verify SMTP configuration.</p>'
@@ -607,7 +607,7 @@ app.get('/test-email', async (req, res) => {
 });
 
 // Schedule job to run every minute and send emails at 8:00 AM in each subscriber's timezone (testing)
-schedule.scheduleJob('*/5 * * * *', async () => {
+schedule.scheduleJob('*/10 * * * *', async () => {
   try {
     const now = new Date();
     console.log(`\n=== TIMEZONE-AWARE EMAIL JOB ===`);
@@ -640,7 +640,7 @@ schedule.scheduleJob('*/5 * * * *', async () => {
           // Prepare and send email
           const msg = {
             to: subscriber.email,
-            from: 'yashmwani@gmail.com',
+            from: 'newsnexusdaily@gmail.com',
             subject: 'Your Personalized Daily News Update - NewsNexus Daily',
             html: emailContent
           };

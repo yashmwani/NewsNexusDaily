@@ -1,24 +1,26 @@
 # NewsNexus Daily
 
-NewsNexus Daily is a personalized news aggregation and delivery service that sends daily news summaries to subscribers based on their interests. The service uses AI to summarize news articles and delivers them via email at the subscriber's preferred time.
+NewsNexus Daily is a personalized news aggregation and delivery service that sends daily news summaries to subscribers based on their interests and preferred time. The service uses AI to summarize news articles and delivers them via email. Users can manage their subscriptions, customize topics, and unsubscribe easily.
 
 ## Features
 
-- **Personalized News Delivery**: Get daily news summaries based on your chosen topics
-- **AI-Powered Summaries**: News articles are summarized using AI for concise, informative content
-- **Customizable Topics**: Choose from a variety of news topics or add your own
-- **Timezone Support**: Receive news at your preferred local time
-- **Subscription Management**: Easily manage your subscription preferences
-- **Unsubscribe Option**: Simple one-click unsubscribe process
+- **Personalized News Delivery:** Get daily news summaries based on your chosen topics and timezone.
+- **AI-Powered Summaries:** News articles are summarized using OpenAI for concise, informative content.
+- **Customizable Topics:** Choose from a variety of news topics or add your own.
+- **Timezone Support:** Receive news at your preferred local time.
+- **Subscription Management:** Easily manage your subscription preferences.
+- **Unsubscribe Option:** Simple one-click unsubscribe process or by email.
+- **Recent News & AI Chat:** Fetch recent news or chat with an AI assistant for news queries.
 
 ## Tech Stack
 
-- **Backend**: Node.js with Express.js
-- **Database**: MongoDB with Mongoose ODM
-- **Email Service**: Nodemailer
-- **AI Integration**: OpenAI API for news summarization
-- **News API**: NewsAPI.org for fetching news articles
-- **Frontend**: HTML, CSS, JavaScript
+- **Backend:** Node.js with Express.js
+- **Database:** MongoDB with Mongoose ODM
+- **Email Service:** Nodemailer (SMTP)
+- **AI Integration:** OpenAI API for news summarization and chat
+- **News API:** NewsAPI.org for fetching news articles
+- **Frontend:** HTML, CSS, JavaScript (static files)
+- **Scheduling:** node-schedule, moment-timezone
 
 ## Prerequisites
 
@@ -26,6 +28,7 @@ NewsNexus Daily is a personalized news aggregation and delivery service that sen
 - MongoDB (local or Atlas)
 - OpenAI API key
 - NewsAPI.org API key
+- SMTP credentials (for sending emails)
 
 ## Installation
 
@@ -45,8 +48,11 @@ npm install
 MONGODB_URI=your_mongodb_connection_string
 OPENAI_API_KEY=your_openai_api_key
 NEWS_API_KEY=your_newsapi_key
-EMAIL_USER=your_email_address
-EMAIL_PASS=your_email_password
+SMTP_HOST=your_smtp_host
+SMTP_PORT=your_smtp_port
+SMTP_USER=your_email_address
+SMTP_PASS=your_email_password
+PORT=4000
 ```
 
 ## Project Structure
@@ -54,25 +60,33 @@ EMAIL_PASS=your_email_password
 ```
 NewsNexusDaily/
 ├── public/                 # Static files
-│   ├── subscribe.html     # Subscription page
-│   ├── subscriber.html    # Subscription management page
-│   └── unsubscribe.html   # Unsubscribe page
-├── server.js              # Main application file
-├── package.json           # Project dependencies
-└── README.md             # Project documentation
+│   ├── subscribe.html      # Subscription page
+│   ├── subscriber.html     # Subscription management page
+│   ├── unsubscribe.html    # Unsubscribe page
+│   ├── app-icon.html       # App icon
+│   └── favicon.svg         # Favicon
+├── main.html               # Landing page
+├── server.js               # Main application file
+├── package.json            # Project dependencies
+└── README.md               # Project documentation
 ```
 
 ## API Endpoints
 
 ### Subscription Management
-- `POST /api/subscribe`: Create or update a subscription
-- `GET /api/subscriber/:email`: Get subscriber details
-- `POST /api/unsubscribe-by-email`: Unsubscribe by email
-- `GET /api/unsubscribe/:token`: Unsubscribe using token
+- `POST /api/subscribe`: Create or update a subscription. Requires `{ email, topics, timezone }` in the body.
+- `GET /api/subscriber/:email`: Get subscriber details (topics, timezone) by email.
+- `POST /api/unsubscribe-by-email`: Unsubscribe by email. Requires `{ email }` in the body. Deletes the subscriber.
+- `GET /api/unsubscribe/:token`: Unsubscribe using a unique token (sent in email). Deactivates the subscriber.
 
-### News Delivery
-- `GET /api/news`: Fetch recent news articles
-- `GET /api/summarize`: Get AI-generated summaries
+### News Delivery & AI
+- `GET /api/news`: Fetch recent news articles (deprecated, use /api/recent-news).
+- `GET /api/recent-news`: Fetches the latest top headlines (category, headline, summary, source, time, date, url).
+- `GET /api/summarize`: Get AI-generated summaries (internal use).
+- `POST /api/chat`: Chat with the AI news assistant. Requires `{ message }` in the body. Returns a list of news items with headings, summaries, and links.
+
+### Other
+- `GET /test-email`: Test SMTP and MongoDB connection, and print active subscribers (for development/testing).
 
 ## Usage
 
@@ -85,6 +99,7 @@ node server.js
 - Main page: `http://localhost:4000`
 - Subscribe: `http://localhost:4000/subscribe`
 - Manage subscription: `http://localhost:4000/subscriber.html`
+- Unsubscribe: `http://localhost:4000/unsubscribe.html`
 
 ## Features in Detail
 
@@ -101,13 +116,17 @@ node server.js
 ### Email Delivery
 - Sends personalized news digests
 - Includes article summaries and source links
-- Delivers at subscriber's preferred time
+- Delivers at subscriber's preferred time (timezone-aware)
 
 ### Subscription Management
 - Easy subscription process
 - Topic customization
 - Timezone selection
-- Simple unsubscribe option
+- Simple unsubscribe option (via email link or by email)
+
+### AI News Assistant
+- Real-time chat endpoint for news queries
+- Returns 3-5 news items from reputable sources with summaries and links
 
 ## Contributing
 

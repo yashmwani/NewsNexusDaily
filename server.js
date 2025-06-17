@@ -281,7 +281,7 @@ function createEmailTemplate(topics, summaries, articles = []) {
                 </div>
                 <div class="footer">
                     <p>This email was sent by NewsNexus Daily.</p>
-                    <p>To manage your subscription preferences, <a href="http://localhost:4000/subscriber.html" class="unsubscribe-link">click here</a>.</p>
+                    <p>To manage your subscription preferences, <a href="https://newsnexusdaily.onrender.com/unsubscribe.html" class="unsubscribe-link">click here</a>.</p>
                     <p class="source-link">Sources: ${topics.map((topic, index) => {
                         const topicArticles = articles[index] || [];
                         return topicArticles.map(article => 
